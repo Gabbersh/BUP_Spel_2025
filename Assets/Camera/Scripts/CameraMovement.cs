@@ -7,7 +7,7 @@ public class CameraMovement : MonoBehaviour
     public Transform railEnd;
 
     [Header("Movement Settings")]
-    public float moveSpeed = 0.5f;
+    public float moveSpeed = 0.5f; // speed factor for dragging
     public float fixedY = 5f;
 
     [Header("Momentum Settings")]
@@ -51,8 +51,10 @@ public class CameraMovement : MonoBehaviour
     {
         if (dragging)
         {
-            velocity = -inputDelta.x * moveSpeed / Time.deltaTime;
-            t += -inputDelta.x * moveSpeed;
+            // Scale inputDelta relative to screen width for smooth sliding
+            float deltaT = -inputDelta.x / Screen.width * moveSpeed;
+            t += deltaT;
+            velocity = deltaT / Time.deltaTime; // momentum
         }
         else if (Mathf.Abs(velocity) > 0.001f)
         {
@@ -119,8 +121,12 @@ public class CameraMovement : MonoBehaviour
             Touch touch = Input.GetTouch(0);
             switch (touch.phase)
             {
-                case TouchPhase.Began: StartDragging(touch.position); break;
-                case TouchPhase.Moved: delta = DragDelta(touch.position); break;
+                case TouchPhase.Began:
+                    StartDragging(touch.position);
+                    break;
+                case TouchPhase.Moved:
+                    delta = DragDelta(touch.position);
+                    break;
                 case TouchPhase.Ended:
                 case TouchPhase.Canceled:
                     dragging = false;
@@ -140,23 +146,21 @@ public class CameraMovement : MonoBehaviour
 
     private Vector2 DragDelta(Vector2 currentPos)
     {
-        Vector2 delta = (currentPos - lastInputPos) / Screen.width;
+        Vector2 delta = currentPos - lastInputPos;
         lastInputPos = currentPos;
         return delta;
     }
-     
+
     // ----- POI Interaction -----
     public void MoveToPOI(Vector3 targetPos, Quaternion targetRot)
     {
         if (overrideActive)
         {
-            // Already at POI → return to rail
             overrideActive = false;
             returningToRail = true;
         }
         else
         {
-            // Save current position as return target
             returnTargetPos = transform.position;
             returnTargetRot = transform.rotation;
 
