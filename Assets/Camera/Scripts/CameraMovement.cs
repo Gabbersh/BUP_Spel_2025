@@ -7,7 +7,7 @@ public class CameraMovement : MonoBehaviour
     public Transform railEnd;
 
     [Header("Movement Settings")]
-    public float moveSpeed = 0.5f; // speed factor for dragging
+    public float moveSpeed = 0.5f; // drag/swipe sensitivity
     public float fixedY = 5f;
 
     [Header("Momentum Settings")]
@@ -26,8 +26,8 @@ public class CameraMovement : MonoBehaviour
 
     private float t = 0.5f; // position along rail [0,1]
     private float velocity = 0f;
-    private Vector2 lastInputPos;
     private bool dragging = false;
+    private Vector2 lastInputPos;
     private Quaternion railOriginalRot;
 
     void Start()
@@ -39,7 +39,43 @@ public class CameraMovement : MonoBehaviour
     {
         if (railStart == null || railEnd == null) return;
 
-        Vector2 inputDelta = GetInputDelta();
+        Vector2 inputDelta = Vector2.zero;
+
+        // ----- Mouse Input (PC) -----
+        if (Input.GetMouseButtonDown(0))
+        {
+            StartDragging(Input.mousePosition);
+        }
+        if (Input.GetMouseButton(0))
+        {
+            inputDelta = (Vector2)Input.mousePosition - lastInputPos;
+            lastInputPos = Input.mousePosition;
+            dragging = true;
+        }
+        if (Input.GetMouseButtonUp(0))
+        {
+            dragging = false;
+        }
+
+        // ----- Touch Input (Mobile) -----
+        if (Input.touchCount == 1)
+        {
+            Touch touch = Input.GetTouch(0);
+            switch (touch.phase)
+            {
+                case TouchPhase.Began:
+                    StartDragging(touch.position);
+                    break;
+                case TouchPhase.Moved:
+                    inputDelta = touch.deltaPosition; // use deltaPosition directly
+                    dragging = true;
+                    break;
+                case TouchPhase.Ended:
+                case TouchPhase.Canceled:
+                    dragging = false;
+                    break;
+            }
+        }
 
         if (!overrideActive && !returningToRail)
             HandleRailMovement(inputDelta);
@@ -51,7 +87,7 @@ public class CameraMovement : MonoBehaviour
     {
         if (dragging)
         {
-            // Scale inputDelta relative to screen width for smooth sliding
+            // Convert pixel delta to 0-1 range along the rail
             float deltaT = -inputDelta.x / Screen.width * moveSpeed;
             t += deltaT;
             velocity = deltaT / Time.deltaTime; // momentum
@@ -87,7 +123,7 @@ public class CameraMovement : MonoBehaviour
             transform.rotation = targetRot;
 
             if (overrideActive)
-                velocity = 0f; // stop momentum
+                velocity = 0f;
             else
                 returningToRail = false;
         }
@@ -101,54 +137,11 @@ public class CameraMovement : MonoBehaviour
         transform.rotation = railOriginalRot;
     }
 
-    private Vector2 GetInputDelta()
-    {
-        Vector2 delta = Vector2.zero;
-
-        // ----- Mouse Input -----
-        if (Input.GetMouseButtonDown(0))
-            StartDragging(Input.mousePosition);
-
-        if (Input.GetMouseButton(0))
-            delta = DragDelta(Input.mousePosition);
-
-        if (Input.GetMouseButtonUp(0))
-            dragging = false;
-
-        // ----- Touch Input -----
-        if (Input.touchCount == 1)
-        {
-            Touch touch = Input.GetTouch(0);
-            switch (touch.phase)
-            {
-                case TouchPhase.Began:
-                    StartDragging(touch.position);
-                    break;
-                case TouchPhase.Moved:
-                    delta = DragDelta(touch.position);
-                    break;
-                case TouchPhase.Ended:
-                case TouchPhase.Canceled:
-                    dragging = false;
-                    break;
-            }
-        }
-
-        return delta;
-    }
-
     private void StartDragging(Vector2 inputPos)
     {
         lastInputPos = inputPos;
         dragging = true;
         velocity = 0f;
-    }
-
-    private Vector2 DragDelta(Vector2 currentPos)
-    {
-        Vector2 delta = currentPos - lastInputPos;
-        lastInputPos = currentPos;
-        return delta;
     }
 
     // ----- POI Interaction -----
