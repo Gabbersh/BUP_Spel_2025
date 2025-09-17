@@ -42,20 +42,14 @@ public class CameraMovement : MonoBehaviour
         Vector2 inputDelta = Vector2.zero;
 
         // ----- Mouse Input (PC) -----
-        if (Input.GetMouseButtonDown(0))
-        {
-            StartDragging(Input.mousePosition);
-        }
+        if (Input.GetMouseButtonDown(0)) StartDragging(Input.mousePosition);
         if (Input.GetMouseButton(0))
         {
             inputDelta = (Vector2)Input.mousePosition - lastInputPos;
             lastInputPos = Input.mousePosition;
             dragging = true;
         }
-        if (Input.GetMouseButtonUp(0))
-        {
-            dragging = false;
-        }
+        if (Input.GetMouseButtonUp(0)) dragging = false;
 
         // ----- Touch Input (Mobile) -----
         if (Input.touchCount == 1)
@@ -67,7 +61,7 @@ public class CameraMovement : MonoBehaviour
                     StartDragging(touch.position);
                     break;
                 case TouchPhase.Moved:
-                    inputDelta = touch.deltaPosition; // use deltaPosition directly
+                    inputDelta = touch.deltaPosition;
                     dragging = true;
                     break;
                 case TouchPhase.Ended:
@@ -87,10 +81,9 @@ public class CameraMovement : MonoBehaviour
     {
         if (dragging)
         {
-            // Convert pixel delta to 0-1 range along the rail
             float deltaT = -inputDelta.x / Screen.width * moveSpeed;
             t += deltaT;
-            velocity = deltaT / Time.deltaTime; // momentum
+            velocity = deltaT / Time.deltaTime;
         }
         else if (Mathf.Abs(velocity) > 0.001f)
         {
@@ -161,5 +154,11 @@ public class CameraMovement : MonoBehaviour
             overrideTargetRot = targetRot;
             overrideActive = true;
         }
+    }
+
+    // ----- PUBLIC METHODS FOR OTHER SCRIPTS -----
+    public bool IsOverridingToPOI(Vector3 targetPos)
+    {
+        return overrideActive && overrideTargetPos == targetPos;
     }
 }
