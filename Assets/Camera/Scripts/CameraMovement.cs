@@ -14,7 +14,7 @@ public class CameraMovement : MonoBehaviour
     public float deceleration = 5f;
 
     [Header("POI Override")]
-    public float overrideSpeed = 5f;
+    public float overrideSpeed = 1f;
     private bool overrideActive = false;
     private Vector3 overrideTargetPos;
     private Quaternion overrideTargetRot;
@@ -142,18 +142,20 @@ public class CameraMovement : MonoBehaviour
     {
         if (overrideActive)
         {
+            // Start returning to rail using the same overrideSpeed
             overrideActive = false;
             returningToRail = true;
         }
         else
         {
+            // Save current position as return target
             returnTargetPos = transform.position;
             returnTargetRot = transform.rotation;
 
             overrideTargetPos = targetPos;
             overrideTargetRot = targetRot;
             overrideActive = true;
-        }
+        } 
     }
 
     // ----- PUBLIC METHODS FOR OTHER SCRIPTS -----

@@ -17,7 +17,6 @@ public class CharacterVisibility : MonoBehaviour
     {
         if (poi == null || poi.targetCamera == null) return;
 
-        // USE THE PUBLIC METHOD INSTEAD OF DIRECT FIELD ACCESS
         bool poiActive = poi.targetCamera.IsOverridingToPOI(poi.cameraTarget.position);
 
         bool cameraAtTarget = Vector3.Distance(poi.targetCamera.transform.position, poi.cameraTarget.position) <= activationDistance;
