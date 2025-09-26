@@ -1,40 +1,53 @@
 using UnityEngine;
+using System;
 
 public class Interactable : MonoBehaviour
 {
-    public Transform pickupTarget; // assign a point near the camera where it moves to
-    public float moveSpeed = 5f;  // speed when moving to camera
-    public bool pickedUp = false;
+    [Header("Pickup Settings")]
+    public Transform pickupTarget;    // point near camera to move to
+    public float moveSpeed = 5f;      // movement speed to target
 
-    private Vector3 startPos;
-    private Quaternion startRot;
+    private bool pickedUp = false;    // object is moving to pickupTarget
+    private bool finished = false;    // has finished moving
+    private bool firstClickDone = false; // tracks first vs second click
 
-    void Start()
-    {
-        startPos = transform.position;
-        startRot = transform.rotation;
-    }
+    public event Action<Interactable> OnPickedUp; // optional event
 
     void Update()
     {
-        if (pickedUp)
+        if (pickedUp && !finished)
         {
+            if (pickupTarget == null) return;
+
             // Smoothly move to pickup target
             transform.position = Vector3.Lerp(transform.position, pickupTarget.position, Time.deltaTime * moveSpeed);
             transform.rotation = Quaternion.Slerp(transform.rotation, pickupTarget.rotation, Time.deltaTime * moveSpeed);
 
-            // Optional: if close enough, finalize pickup
+            // Check if close enough
             if (Vector3.Distance(transform.position, pickupTarget.position) < 0.01f)
             {
-                // You could disable or store the object here
-                //gameObject.SetActive(false);
-                Inventory.Instance.AddItem(this); // example inventory call
+                finished = true; // stop further movement
+                OnPickedUp?.Invoke(this);
+
+                if (Inventory.Instance != null)
+                    Inventory.Instance.AddItem(this);
             }
         }
     }
 
     public void OnInteract()
     {
-        pickedUp = true;
+        if (!firstClickDone)
+        {
+            // First click: pick up
+            pickedUp = true;
+            finished = false;
+            firstClickDone = true;
+        }
+        else
+        {
+            // Second click: deactivate object
+            gameObject.SetActive(false);
+        }
     }
 }
