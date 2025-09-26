@@ -2,21 +2,15 @@ using UnityEngine;
 
 public class InputManager : MonoBehaviour
 {
-    private bool interactPressed = false;
-    private bool submitPressed = false;
-
-    private static InputManager instance;
-
-    private void Awake()
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
     {
-        if (isntance != null)
-            Debug.LogError("Found more than one Input Manager in the scene.");
-
-        instance = this;
+        
     }
 
-    public static InputManager GetInstance()
+    // Update is called once per frame
+    void Update()
     {
-        return instance;
+        
     }
 }
