@@ -106,7 +106,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Interactable
   pickupTarget: {fileID: 0}
   moveSpeed: 5
-  pickedUp: 0
 --- !u!114 &5926070962729904144
 MonoBehaviour:
   m_ObjectHideFlags: 0

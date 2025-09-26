@@ -1,6 +1,7 @@
 using UnityEngine;
 using System;
 
+[RequireComponent(typeof(InteractableTrigger))]
 public class Interactable : MonoBehaviour
 {
     [Header("Pickup Settings")]
