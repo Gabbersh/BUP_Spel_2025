@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 1044304471525373220}
   - component: {fileID: 7358707616044489759}
   - component: {fileID: 3043556816858400582}
+  - component: {fileID: 7817076508336666224}
   m_Layer: 0
   m_Name: Camera
   m_TagString: MainCamera
@@ -110,7 +111,7 @@ MonoBehaviour:
   railStart: {fileID: 0}
   railEnd: {fileID: 0}
   moveSpeed: 0.2
-  fixedY: 30
+  fixedY: 35
   deceleration: 3
   overrideSpeed: 5
 --- !u!114 &3043556816858400582
@@ -125,6 +126,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3dda83f3bd917dd43856b3ce8c464998, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Inventory
+--- !u!114 &7817076508336666224
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 58766140042088030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d49b2bb3ef6892f40854302923701f78, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InteractableTrigger
 --- !u!1 &6192484624992351245
 GameObject:
   m_ObjectHideFlags: 0
@@ -150,7 +163,7 @@ Transform:
   m_GameObject: {fileID: 6192484624992351245}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 1, z: 0, w: 0}
-  m_LocalPosition: {x: 0, y: -0, z: 2.294}
+  m_LocalPosition: {x: 0, y: -0.101, z: 0.888}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

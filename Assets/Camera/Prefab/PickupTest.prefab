@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 6093356820124490438}
   - component: {fileID: 1112546631419530638}
   - component: {fileID: 7091081480679197928}
-  - component: {fileID: 5926070962729904144}
   - component: {fileID: 8204161588279492695}
   m_Layer: 0
   m_Name: PickupTest
@@ -106,18 +105,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Interactable
   pickupTarget: {fileID: 0}
   moveSpeed: 5
---- !u!114 &5926070962729904144
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7555551140340951113}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d49b2bb3ef6892f40854302923701f78, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::InteractableTrigger
 --- !u!65 &8204161588279492695
 BoxCollider:
   m_ObjectHideFlags: 0
