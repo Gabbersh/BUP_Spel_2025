@@ -20,6 +20,19 @@ public class CameraMovement : MonoBehaviour
     private Vector3 overrideTargetPos;
     private Quaternion overrideTargetRot;
 
+    // Events for UI/other scripts
+    public event System.Action OnLeftPOI;
+    public event System.Action OnReturnedToRail;
+    public event System.Action OnReachedPOI;
+
+    [Header("Transition Control")]
+    private bool isTransitioning = false;
+
+    public bool HasReachedPOI { get; private set; } = false;
+    public bool IsIdleOnRail =>
+    !isTransitioning && !overrideActive && !returningToRail &&
+    !dragging && Mathf.Abs(velocity) < 0.001f;
+
     [Header("Rail Return")]
     private bool returningToRail = false;
     private Vector3 returnTargetPos;
@@ -117,9 +130,19 @@ public class CameraMovement : MonoBehaviour
             transform.rotation = targetRot;
 
             if (overrideActive)
+            {
                 velocity = 0f;
+                HasReachedPOI = true;
+                OnReachedPOI?.Invoke();  // 🔽 arrived at POI
+            }
             else
+            {
                 returningToRail = false;
+                HasReachedPOI = false;
+                OnReturnedToRail?.Invoke(); // 🔽 back on rail
+            }
+
+            isTransitioning = false;
         }
     }
 
@@ -141,21 +164,29 @@ public class CameraMovement : MonoBehaviour
     // ----- POI Interaction -----
     public void MoveToPOI(Vector3 targetPos, Quaternion targetRot)
     {
-        // Save current position for later return
+        if (isTransitioning || !IsIdleOnRail) return;
+
         returnTargetPos = transform.position;
         returnTargetRot = transform.rotation;
 
         overrideTargetPos = targetPos;
         overrideTargetRot = targetRot;
         overrideActive = true;
-        returningToRail = false; // stop any previous return
+        returningToRail = false;
+        isTransitioning = true;
+        HasReachedPOI = false;
     }
 
-    // Called by the UI button to return to the rail
     public void ReturnToRail()
     {
+        if (isTransitioning) return;
+
         overrideActive = false;
         returningToRail = true;
+        isTransitioning = true;
+        HasReachedPOI = false;
+
+        OnLeftPOI?.Invoke(); // 🔽 leaving POI
     }
 
     // ----- PUBLIC METHODS FOR OTHER SCRIPTS -----
