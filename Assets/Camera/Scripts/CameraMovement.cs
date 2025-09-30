@@ -15,6 +15,7 @@ public class CameraMovement : MonoBehaviour
 
     [Header("POI Override")]
     public float overrideSpeed = 1f;
+    public bool IsInPOI => overrideActive;
     private bool overrideActive = false;
     private Vector3 overrideTargetPos;
     private Quaternion overrideTargetRot;
@@ -140,22 +141,21 @@ public class CameraMovement : MonoBehaviour
     // ----- POI Interaction -----
     public void MoveToPOI(Vector3 targetPos, Quaternion targetRot)
     {
-        if (overrideActive)
-        {
-            // Start returning to rail using the same overrideSpeed
-            overrideActive = false;
-            returningToRail = true;
-        }
-        else
-        {
-            // Save current position as return target
-            returnTargetPos = transform.position;
-            returnTargetRot = transform.rotation;
+        // Save current position for later return
+        returnTargetPos = transform.position;
+        returnTargetRot = transform.rotation;
 
-            overrideTargetPos = targetPos;
-            overrideTargetRot = targetRot;
-            overrideActive = true;
-        } 
+        overrideTargetPos = targetPos;
+        overrideTargetRot = targetRot;
+        overrideActive = true;
+        returningToRail = false; // stop any previous return
+    }
+
+    // Called by the UI button to return to the rail
+    public void ReturnToRail()
+    {
+        overrideActive = false;
+        returningToRail = true;
     }
 
     // ----- PUBLIC METHODS FOR OTHER SCRIPTS -----
