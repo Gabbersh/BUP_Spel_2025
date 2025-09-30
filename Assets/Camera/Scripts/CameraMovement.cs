@@ -133,13 +133,13 @@ public class CameraMovement : MonoBehaviour
             {
                 velocity = 0f;
                 HasReachedPOI = true;
-                OnReachedPOI?.Invoke();  // 🔽 arrived at POI
+                OnReachedPOI?.Invoke();  // arrived at POI
             }
             else
             {
                 returningToRail = false;
                 HasReachedPOI = false;
-                OnReturnedToRail?.Invoke(); // 🔽 back on rail
+                OnReturnedToRail?.Invoke(); // back on rail
             }
 
             isTransitioning = false;
@@ -186,7 +186,7 @@ public class CameraMovement : MonoBehaviour
         isTransitioning = true;
         HasReachedPOI = false;
 
-        OnLeftPOI?.Invoke(); // 🔽 leaving POI
+        OnLeftPOI?.Invoke(); // leaving POI
     }
 
     // ----- PUBLIC METHODS FOR OTHER SCRIPTS -----
