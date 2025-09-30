@@ -53,3 +53,6 @@ Thumbs.db
 
 Node / package manager
 node_modules/
+
+# Unity User settings (local editor preferences)
+UserSettings/
