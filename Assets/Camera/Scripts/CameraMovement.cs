@@ -24,6 +24,7 @@ public class CameraMovement : MonoBehaviour
     public event System.Action OnLeftPOI;
     public event System.Action OnReturnedToRail;
     public event System.Action OnReachedPOI;
+    public event System.Action OnLeftRail;
 
     [Header("Transition Control")]
     private bool isTransitioning = false;
@@ -165,6 +166,8 @@ public class CameraMovement : MonoBehaviour
     public void MoveToPOI(Vector3 targetPos, Quaternion targetRot)
     {
         if (isTransitioning || !IsIdleOnRail) return;
+
+        OnLeftRail?.Invoke();
 
         returnTargetPos = transform.position;
         returnTargetRot = transform.rotation;
