@@ -5,6 +5,10 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// Simplified DialogueManager that tracks choices without Ink external functions.
+/// Use this version if you get binding errors.
+/// </summary>
 public class DialogueManager : MonoBehaviour
 {
     [Header("Dialogue UI")]
@@ -23,12 +27,15 @@ public class DialogueManager : MonoBehaviour
     [SerializeField] private GameObject[] choices;
     private TextMeshProUGUI[] choicesText;
 
+    [Header("Progression Tracking")]
+    [Tooltip("The ID of the current dialogue (set when EnterDialogueMode is called)")]
+    [SerializeField] private string currentDialogueID = "";
+
     private Story currentStory;
     private static DialogueManager instance;
 
     public bool dialogueIsPlaying { get; private set; }
     private bool dialogueHasEnded = false;
-
     private bool isTyping = false;
     private Coroutine typingCoroutine;
 
@@ -101,9 +108,14 @@ public class DialogueManager : MonoBehaviour
         return instance;
     }
 
-    public void EnterDialogueMode(TextAsset inkJSON)
+    /// <summary>
+    /// Start a dialogue. Optionally provide a dialogueID for progression tracking.
+    /// </summary>
+    public void EnterDialogueMode(TextAsset inkJSON, string dialogueID = "")
     {
         currentStory = new Story(inkJSON.text);
+        currentDialogueID = dialogueID;
+
         dialogueIsPlaying = true;
         dialogueHasEnded = false;
         dialoguePanel.SetActive(true);
@@ -127,6 +139,8 @@ public class DialogueManager : MonoBehaviour
         {
             choice.SetActive(false);
         }
+
+        currentDialogueID = "";
     }
 
     public void ForceExitDialogue()
@@ -146,6 +160,8 @@ public class DialogueManager : MonoBehaviour
         {
             choice.SetActive(false);
         }
+
+        currentDialogueID = "";
     }
 
     private void ContinueStory()
@@ -254,6 +270,12 @@ public class DialogueManager : MonoBehaviour
     public void MakeChoice(int choiceIndex)
     {
         if (dialogueHasEnded || isTyping) return;
+
+        // Record the choice in GameManager
+        if (GameManager.Instance != null && !string.IsNullOrEmpty(currentDialogueID))
+        {
+            GameManager.Instance.RecordChoice(currentDialogueID, choiceIndex);
+        }
 
         currentStory.ChooseChoiceIndex(choiceIndex);
         ContinueStory();
