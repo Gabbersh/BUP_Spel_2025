@@ -36,18 +36,6 @@ public class MayorsPower : MonoBehaviour
         //UpdateBar();
     }
 
-    private void UpdateBar()
-    {
-        if (current <= 10)
-        {
-            current = 10;
-            TriggerFillAnimation();
-            return;
-        }
-
-        TriggerFillAnimation();
-    }
-
     public bool ChangeBarByAmount(int amount)
     {
         if (current + amount < 0)
@@ -61,6 +49,18 @@ public class MayorsPower : MonoBehaviour
         UpdateBar();
 
         return true;
+    }
+
+    private void UpdateBar()
+    {
+        if (current <= 10)
+        {
+            current = 10;
+            TriggerFillAnimation();
+            return;
+        }
+
+        TriggerFillAnimation();
     }
 
     private void TriggerFillAnimation()
