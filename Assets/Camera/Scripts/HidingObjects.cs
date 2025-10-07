@@ -2,39 +2,144 @@ using UnityEngine;
 
 public class HidingObjects : MonoBehaviour
 {
+    [Header("Object Groups")]
     [SerializeField] private GameObject[] objectsToToggle;
-    [SerializeField] private CameraMovement cameraMovement; // assign in inspector
+    [SerializeField] private GameObject[] inverseObjects;
 
-    void Start()
-    {
-        // Subscribe to camera events
-        cameraMovement.OnReachedPOI += HideObjects;      // hide on POI
-        cameraMovement.OnLeftPOI += ShowObjects;        // show when leaving POI
-        cameraMovement.OnReturnedToRail += ShowObjects; // show when back on rail
-        cameraMovement.OnLeftRail += HideObjects;       // hide immediately when leaving rail
-    }
+    [Header("References")]
+    [SerializeField] private CameraMovement cameraMovement;
 
-    private void ShowObjects()
+    [Header("Input")]
+    [SerializeField] private KeyCode activateKey = KeyCode.B;
+
+    private void Start()
     {
-        foreach (var obj in objectsToToggle)
+        if (cameraMovement == null)
         {
-            if (obj != null) obj.SetActive(true);
+            Debug.LogWarning($"{nameof(HidingObjects)} on {gameObject.name} has no CameraMovement assigned.");
+            return;
         }
+
+        SubscribeToCameraEvents();
+        InitializeVisibility();
     }
 
-    private void HideObjects()
+    private void Update()
     {
-        foreach (var obj in objectsToToggle)
+        if (Input.GetKeyDown(activateKey))
         {
-            if (obj != null) obj.SetActive(false);
+            ActivateAllIgnoredObjects();
+            // Refresh visibility right after activating them
+            ShowObjects();
         }
     }
 
     private void OnDestroy()
     {
-        // Always unsubscribe when destroyed
+        if (cameraMovement == null) return;
+        UnsubscribeFromCameraEvents();
+    }
+
+    private void SubscribeToCameraEvents()
+    {
+        cameraMovement.OnReachedPOI += HideObjects;
+        cameraMovement.OnLeftPOI += ShowObjects;
+        cameraMovement.OnReturnedToRail += ShowObjects;
+        cameraMovement.OnLeftRail += HideObjects;
+    }
+
+    private void UnsubscribeFromCameraEvents()
+    {
         cameraMovement.OnReachedPOI -= HideObjects;
         cameraMovement.OnLeftPOI -= ShowObjects;
         cameraMovement.OnReturnedToRail -= ShowObjects;
+        cameraMovement.OnLeftRail -= HideObjects;
+    }
+
+    private bool CanToggle(GameObject obj)
+    {
+        if (obj == null) return false;
+
+        var pickedMarker = obj.GetComponent<PickedUpMarker>();
+        if (pickedMarker != null && pickedMarker.pickedUp)
+            return false;
+
+        var ignore = obj.GetComponent<IgnoreUntilActivated>();
+        if (ignore != null && !ignore.isActive)
+            return false;
+
+        return true;
+    }
+
+    private void InitializeVisibility()
+    {
+        foreach (var obj in objectsToToggle)
+        {
+            if (obj == null) continue;
+
+            var ignore = obj.GetComponent<IgnoreUntilActivated>();
+            if (ignore != null && !ignore.isActive)
+            {
+                obj.SetActive(false);
+                continue;
+            }
+
+            obj.SetActive(true);
+        }
+
+        foreach (var obj in inverseObjects)
+        {
+            if (obj == null) continue;
+
+            var ignore = obj.GetComponent<IgnoreUntilActivated>();
+            if (ignore != null && !ignore.isActive)
+            {
+                obj.SetActive(false);
+                continue;
+            }
+
+            obj.SetActive(false);
+        }
+    }
+
+    private void ShowObjects()
+    {
+        SetActiveState(objectsToToggle, true);
+        SetActiveState(inverseObjects, false);
+    }
+
+    private void HideObjects()
+    {
+        SetActiveState(objectsToToggle, false);
+        SetActiveState(inverseObjects, true);
+    }
+
+    private void SetActiveState(GameObject[] objects, bool active)
+    {
+        foreach (var obj in objects)
+        {
+            if (CanToggle(obj))
+                obj.SetActive(active);
+        }
+    }
+
+    private void ActivateAllIgnoredObjects()
+    {
+        // Reactivate all objects that were ignored before
+        foreach (var obj in objectsToToggle)
+        {
+            var ignore = obj?.GetComponent<IgnoreUntilActivated>();
+            if (ignore != null && !ignore.isActive)
+                ignore.isActive = true;
+        }
+
+        foreach (var obj in inverseObjects)
+        {
+            var ignore = obj?.GetComponent<IgnoreUntilActivated>();
+            if (ignore != null && !ignore.isActive)
+                ignore.isActive = true;
+        }
+
+        Debug.Log("All previously ignored objects are now active in logic!");
     }
 }
