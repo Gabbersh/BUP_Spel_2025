@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6409640684281146503}
   - component: {fileID: 1156966537406157915}
+  - component: {fileID: 61909636946570554}
   m_Layer: 0
   m_Name: HideManager
   m_TagString: Untagged
@@ -46,5 +47,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HidingObjects
   objectsToToggle:
   - {fileID: 0}
-  - {fileID: 0}
   cameraMovement: {fileID: 0}
+--- !u!114 &61909636946570554
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2820779405901898479}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3672151b6ab0d0b43bb74c8a6edeffd7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QuestHintManager
+  cameraMovement: {fileID: 0}
+  highlightObjects:
+  - {fileID: 0}
+  interactableObjects:
+  - {fileID: 0}
+  toggleQuestKey: 98
+  questActive: 0
