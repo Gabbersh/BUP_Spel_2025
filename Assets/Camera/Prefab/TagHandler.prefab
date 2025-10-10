@@ -47,7 +47,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FollowTargetSpawner
   target: {fileID: 0}
   prefab: {fileID: 7876032510110535512, guid: 040c7c022c070b24796b89fa9b498cb2, type: 3}
-  height: 60
+  height: 15
   fixedZ: 12
 --- !u!114 &9018018782286467808
 MonoBehaviour:
@@ -63,5 +63,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FollowTargetSpawner
   target: {fileID: 0}
   prefab: {fileID: 7609995987961875446, guid: a90aeae3fdabaa5428aa15bb4272ff4f, type: 3}
-  height: 60
+  height: 15
   fixedZ: 12
