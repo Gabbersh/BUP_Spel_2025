@@ -1,73 +1,119 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 
+/// <summary>
+/// Simplified input manager that handles both touch and mouse input.
+/// Checks if input is over UI to prevent accidental world interactions.
+/// </summary>
 public class InputManager : MonoBehaviour
 {
-    private bool interactPressed = false;
-    private bool submitPressed = false;
+    public static InputManager Instance { get; private set; }
 
-    private static InputManager instance;
+    // Events for decoupling
+    public event System.Action OnInteract;
+    public event System.Action OnSubmit;
+
+    // State tracking
+    private bool interactConsumed = false;
+    private bool interactThisFrame = false;
 
     private void Awake()
     {
-        if (instance != null)
-            Debug.LogError("Found more than one Input Manager in the scene.");
+        if (Instance != null)
+        {
+            Debug.LogError("[InputManager] Multiple instances found! Destroying duplicate.");
+            Destroy(gameObject);
+            return;
+        }
 
-        instance = this;
-    }
-
-    public static InputManager GetInstance()
-    {
-        return instance;
+        Instance = this;
     }
 
     private void Update()
     {
-        HandleTouchInput();
+        // ALWAYS detect input, let subscribers decide what to do
+        DetectInput();
     }
 
-    private void HandleTouchInput()
+    private void LateUpdate()
     {
-        if (DialogueManager.GetInstance() != null && DialogueManager.GetInstance().dialogueIsPlaying)
-            return;
+        // Reset flags at end of frame
+        interactThisFrame = false;
+        interactConsumed = false;
+    }
 
+    /// <summary>
+    /// Detect touch or mouse input, ignoring UI elements.
+    /// Now ALWAYS detects input - subscribers decide how to handle it.
+    /// </summary>
+    private void DetectInput()
+    {
+        bool inputDetected = false;
+
+        // Touch input (mobile)
         if (Input.touchCount > 0)
         {
             Touch touch = Input.GetTouch(0);
-
             if (touch.phase == TouchPhase.Began)
             {
-                if (!EventSystem.current.IsPointerOverGameObject(touch.fingerId))
-                {
-                    interactPressed = true;
-                }
+                inputDetected = !IsPointerOverUI(touch.fingerId);
             }
         }
+        // Mouse input (editor/desktop)
         else if (Input.GetMouseButtonDown(0))
         {
-            if (!EventSystem.current.IsPointerOverGameObject())
-            {
-                interactPressed = true;
-            }
+            inputDetected = !IsPointerOverUI();
+        }
+
+        if (inputDetected)
+        {
+            interactThisFrame = true;
+            OnInteract?.Invoke();
         }
     }
 
+    /// <summary>
+    /// Check if pointer is over UI element.
+    /// </summary>
+    private bool IsPointerOverUI(int touchId = -1)
+    {
+        if (EventSystem.current == null)
+            return false;
+
+        if (touchId >= 0)
+            return EventSystem.current.IsPointerOverGameObject(touchId);
+        else
+            return EventSystem.current.IsPointerOverGameObject();
+    }
+
+    // ==================== PUBLIC API ====================
+
+    /// <summary>
+    /// Check if interact was pressed this frame. Consumes the input.
+    /// </summary>
     public bool GetInteractPressed()
     {
-        bool result = interactPressed;
-        interactPressed = false;
-        return result;
+        if (interactThisFrame && !interactConsumed)
+        {
+            interactConsumed = true;
+            return true;
+        }
+        return false;
     }
 
-    public bool GetSubmitPressed()
+    /// <summary>
+    /// Check if interact was pressed this frame without consuming it.
+    /// </summary>
+    public bool PeekInteractPressed()
     {
-        bool result = submitPressed;
-        submitPressed = false;
-        return result;
+        return interactThisFrame && !interactConsumed;
     }
 
-    public void RegisterSubmitPressed()
+    /// <summary>
+    /// Trigger submit event (for UI buttons to invoke).
+    /// </summary>
+    public void TriggerSubmit()
     {
-        submitPressed = false;
+        OnSubmit?.Invoke();
     }
 }
