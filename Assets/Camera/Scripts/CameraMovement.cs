@@ -54,7 +54,7 @@ public class CameraMovement : MonoBehaviour
     {
         if (railStart == null || railEnd == null) return;
 
-        if (DialogueManager.GetInstance() != null && DialogueManager.GetInstance().dialogueIsPlaying)
+        if (DialogueManager.Instance?.DialogueIsPlaying == true)
         {
             dragging = false;
             velocity = 0f;

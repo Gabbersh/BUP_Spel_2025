@@ -29,9 +29,10 @@ public class ReturnButtonController : MonoBehaviour
 
     void OnReturnPressed()
     {
-        if (DialogueManager.GetInstance() != null && DialogueManager.GetInstance().dialogueIsPlaying)
+        // Force exit dialogue if currently playing
+        if (DialogueManager.Instance?.DialogueIsPlaying == true)
         {
-            DialogueManager.GetInstance().ForceExitDialogue();
+            DialogueManager.Instance.ExitDialogueMode();
         }
 
         cameraMovement.ReturnToRail();
