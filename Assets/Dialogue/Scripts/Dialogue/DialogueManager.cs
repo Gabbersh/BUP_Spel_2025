@@ -1,4 +1,5 @@
 using Ink.Runtime;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -6,85 +7,123 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Simplified DialogueManager that tracks choices without Ink external functions.
-/// Use this version if you get binding errors.
+/// Simplified DialogueManager with better integration with new systems.
+/// Cleaner code, better event handling, and easier to maintain.
 /// </summary>
 public class DialogueManager : MonoBehaviour
 {
+    public static DialogueManager Instance { get; private set; }
+
     [Header("Dialogue UI")]
     [SerializeField] private GameObject dialoguePanel;
     [SerializeField] private TextMeshProUGUI dialogueText;
+    [SerializeField] private TextMeshProUGUI nameText; // Optional: for character names
     [SerializeField] private GameObject continueButton;
 
     [Header("Typewriter Effect")]
     [SerializeField] private float typingSpeed = 0.04f;
     [SerializeField] private bool canSkipTyping = true;
 
-    [Header("Auto Exit Settings")]
+    [Header("Choices UI")]
+    [SerializeField] private GameObject[] choiceButtons;
+    private TextMeshProUGUI[] choiceTexts;
+
+    [Header("Settings")]
     [SerializeField] private float autoExitDelay = 0.1f;
 
-    [Header("Choices UI")]
-    [SerializeField] private GameObject[] choices;
-    private TextMeshProUGUI[] choicesText;
-
-    [Header("Progression Tracking")]
-    [Tooltip("The ID of the current dialogue (set when EnterDialogueMode is called)")]
-    [SerializeField] private string currentDialogueID = "";
-
+    // State
     private Story currentStory;
-    private static DialogueManager instance;
-
-    public bool dialogueIsPlaying { get; private set; }
-    private bool dialogueHasEnded = false;
+    private string currentDialogueID = "";
     private bool isTyping = false;
     private Coroutine typingCoroutine;
 
-    private void Start()
-    {
-        dialogueIsPlaying = false;
-        dialoguePanel.SetActive(false);
+    // Events (kept for backwards compatibility, but also uses GameEvents)
+    public event Action<string> OnDialogueStarted;
+    public event Action<string> OnDialogueEnded;
 
-        choicesText = new TextMeshProUGUI[choices.Length];
-        int index = 0;
-        foreach (GameObject choice in choices)
+    // Properties
+    public bool DialogueIsPlaying { get; private set; }
+
+    private void Awake()
+    {
+        if (Instance != null)
         {
-            choicesText[index] = choice.GetComponentInChildren<TextMeshProUGUI>();
-            index++;
+            Destroy(gameObject);
+            return;
         }
 
+        Instance = this;
+    }
+
+    private void Start()
+    {
+        InitializeUI();
+        SubscribeToInput();
+    }
+
+    private void OnDestroy()
+    {
+        UnsubscribeFromInput();
+    }
+
+    // ==================== INITIALIZATION ====================
+
+    private void InitializeUI()
+    {
+        DialogueIsPlaying = false;
+
+        if (dialoguePanel != null)
+            dialoguePanel.SetActive(false);
+
+        // Setup choice buttons
+        choiceTexts = new TextMeshProUGUI[choiceButtons.Length];
+        for (int i = 0; i < choiceButtons.Length; i++)
+        {
+            choiceTexts[i] = choiceButtons[i].GetComponentInChildren<TextMeshProUGUI>();
+
+            // Add click listeners
+            int index = i; // Capture for closure
+            Button btn = choiceButtons[i].GetComponent<Button>();
+            if (btn != null)
+            {
+                btn.onClick.AddListener(() => MakeChoice(index));
+            }
+        }
+
+        // Setup continue button
         if (continueButton != null)
         {
             Button btn = continueButton.GetComponent<Button>();
             if (btn != null)
             {
-                btn.onClick.AddListener(() => ContinueStory());
+                btn.onClick.AddListener(ContinueStory);
             }
             continueButton.SetActive(false);
         }
     }
 
-    private void Update()
+    private void SubscribeToInput()
     {
-        if (!dialogueIsPlaying || dialogueHasEnded) return;
-
-        if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+        if (InputManager.Instance != null)
         {
-            if (!UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId))
-            {
-                HandleDialogueInput();
-            }
-        }
-        else if (Input.GetMouseButtonDown(0))
-        {
-            if (!UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
-            {
-                HandleDialogueInput();
-            }
+            InputManager.Instance.OnInteract += HandleInteractDuringDialogue;
         }
     }
 
-    private void HandleDialogueInput()
+    private void UnsubscribeFromInput()
     {
+        if (InputManager.Instance != null)
+        {
+            InputManager.Instance.OnInteract -= HandleInteractDuringDialogue;
+        }
+    }
+
+    // ==================== INPUT HANDLING ====================
+
+    private void HandleInteractDuringDialogue()
+    {
+        if (!DialogueIsPlaying) return;
+
         if (isTyping && canSkipTyping)
         {
             SkipTyping();
@@ -95,83 +134,87 @@ public class DialogueManager : MonoBehaviour
         }
     }
 
-    private void Awake()
-    {
-        if (instance != null)
-            Debug.LogError("Found more than one Dialogue Manager in the scene");
+    // ==================== PUBLIC API ====================
 
-        instance = this;
-    }
-
-    public static DialogueManager GetInstance()
-    {
-        return instance;
-    }
-
-    /// <summary>
-    /// Start a dialogue. Optionally provide a dialogueID for progression tracking.
-    /// </summary>
     public void EnterDialogueMode(TextAsset inkJSON, string dialogueID = "")
     {
-        currentStory = new Story(inkJSON.text);
-        currentDialogueID = dialogueID;
+        if (inkJSON == null)
+        {
+            Debug.LogError("[DialogueManager] Attempted to start dialogue with null Ink JSON");
+            return;
+        }
 
-        dialogueIsPlaying = true;
-        dialogueHasEnded = false;
-        dialoguePanel.SetActive(true);
+        try
+        {
+            currentStory = new Story(inkJSON.text);
+            BindInkVariables();
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[DialogueManager] Failed to create Ink story: {e.Message}");
+            return;
+        }
+
+        currentDialogueID = dialogueID;
+        DialogueIsPlaying = true;
+
+        if (dialoguePanel != null)
+            dialoguePanel.SetActive(true);
+
+        
+        HideChoices();                // döljer alla knappar
+        dialogueText.text = string.Empty; // nollställer text
+
+        // Fire events
+        OnDialogueStarted?.Invoke(dialogueID);
+        GameEvents.TriggerDialogueStarted(dialogueID);
 
         ContinueStory();
     }
 
-    private IEnumerator ExitDialogueMode()
+
+    public void ExitDialogueMode()
     {
-        yield return new WaitForSeconds(autoExitDelay);
-
-        dialogueIsPlaying = false;
-        dialogueHasEnded = false;
-        dialoguePanel?.SetActive(false);
-        dialogueText.text = "";
-
-        if (continueButton != null)
-            continueButton.SetActive(false);
-
-        foreach (GameObject choice in choices)
-        {
-            choice.SetActive(false);
-        }
-
-        currentDialogueID = "";
+        StartCoroutine(ExitDialogueRoutine());
     }
 
-    public void ForceExitDialogue()
+    public void MakeChoice(int choiceIndex)
     {
-        StopAllCoroutines();
+        if (!DialogueIsPlaying || isTyping) return;
 
-        dialogueIsPlaying = false;
-        dialogueHasEnded = false;
-        dialoguePanel?.SetActive(false);
-        dialogueText.text = "";
-        isTyping = false;
-
-        if (continueButton != null)
-            continueButton.SetActive(false);
-
-        foreach (GameObject choice in choices)
+        if (choiceIndex < 0 || choiceIndex >= currentStory.currentChoices.Count)
         {
-            choice.SetActive(false);
+            Debug.LogError($"[DialogueManager] Invalid choice index: {choiceIndex}");
+            return;
         }
 
-        currentDialogueID = "";
+        // Record choice
+        if (GameManager.Instance != null && !string.IsNullOrEmpty(currentDialogueID))
+        {
+            GameManager.Instance.RecordChoice(currentDialogueID, choiceIndex);
+        }
+
+        // Fire events
+        GameEvents.TriggerChoiceMade(currentDialogueID, choiceIndex);
+
+        currentStory.ChooseChoiceIndex(choiceIndex);
+        SyncInkVariablesToGameManager();
+
+        ContinueStory();
     }
+
+    // ==================== DIALOGUE FLOW ====================
 
     private void ContinueStory()
     {
-        if (dialogueHasEnded || isTyping) return;
+        if (!DialogueIsPlaying || isTyping) return;
+
+        HideChoices(); 
 
         if (currentStory.canContinue)
         {
             string nextLine = currentStory.Continue();
-            HideAllChoices();
+            SyncInkVariablesToGameManager();
 
             if (typingCoroutine != null)
                 StopCoroutine(typingCoroutine);
@@ -180,10 +223,7 @@ public class DialogueManager : MonoBehaviour
         }
         else
         {
-            dialogueHasEnded = true;
-            if (continueButton != null)
-                continueButton.SetActive(false);
-            StartCoroutine(ExitDialogueMode());
+            DisplayChoices();
         }
     }
 
@@ -192,43 +232,40 @@ public class DialogueManager : MonoBehaviour
         isTyping = true;
         dialogueText.text = "";
 
-        foreach (char letter in text.ToCharArray())
+        // Check for character name tags (optional feature)
+        string processedText = ProcessTags(text);
+
+        foreach (char letter in processedText)
         {
             dialogueText.text += letter;
             yield return new WaitForSeconds(typingSpeed);
         }
 
         isTyping = false;
-        DisplayChoices();
-
-        if (!currentStory.canContinue && currentStory.currentChoices.Count == 0)
-        {
-            dialogueHasEnded = true;
-            if (continueButton != null)
-                continueButton.SetActive(false);
-            StartCoroutine(ExitDialogueMode());
-        }
+        OnTypingComplete();
     }
 
     private void SkipTyping()
     {
         if (typingCoroutine != null)
-        {
             StopCoroutine(typingCoroutine);
-        }
 
-        dialogueText.text = currentStory.currentText;
+        dialogueText.text = ProcessTags(currentStory.currentText);
         isTyping = false;
+        OnTypingComplete();
+    }
+
+    private void OnTypingComplete()
+    {
         DisplayChoices();
 
         if (!currentStory.canContinue && currentStory.currentChoices.Count == 0)
         {
-            dialogueHasEnded = true;
-            if (continueButton != null)
-                continueButton.SetActive(false);
-            StartCoroutine(ExitDialogueMode());
+            ExitDialogueMode();
         }
     }
+
+    // ==================== CHOICES ====================
 
     private void DisplayChoices()
     {
@@ -236,29 +273,37 @@ public class DialogueManager : MonoBehaviour
 
         List<Choice> currentChoices = currentStory.currentChoices;
 
-        if (currentChoices.Count > choices.Length)
-            Debug.LogError("More choices were given than the UI can support. Number of choices given: " + currentChoices.Count);
-
+        // Show choices that exist, hide the rest
         int index = 0;
         foreach (Choice choice in currentChoices)
         {
-            choices[index].gameObject.SetActive(true);
-            choicesText[index].text = choice.text;
+            if (index >= choiceButtons.Length)
+            {
+                Debug.LogError($"[DialogueManager] Too many choices! UI supports {choiceButtons.Length}, got {currentChoices.Count}");
+                break;
+            }
+
+            choiceButtons[index].SetActive(true);
+            choiceTexts[index].text = choice.text;
             index++;
         }
 
-        for (int i = index; i < choices.Length; i++)
+        // Hide unused choice buttons
+        for (int i = index; i < choiceButtons.Length; i++)
         {
-            choices[i].gameObject.SetActive(false);
+            choiceButtons[i].SetActive(false);
         }
 
+        // Show continue button only if no choices available and story can continue
         if (continueButton != null)
-            continueButton.SetActive(currentChoices.Count == 0 && !dialogueHasEnded);
+        {
+            continueButton.SetActive(currentChoices.Count == 0 && currentStory.canContinue);
+        }
     }
 
-    private void HideAllChoices()
+    private void HideChoices()
     {
-        foreach (GameObject choice in choices)
+        foreach (GameObject choice in choiceButtons)
         {
             choice.SetActive(false);
         }
@@ -267,17 +312,116 @@ public class DialogueManager : MonoBehaviour
             continueButton.SetActive(false);
     }
 
-    public void MakeChoice(int choiceIndex)
-    {
-        if (dialogueHasEnded || isTyping) return;
+    // ==================== EXIT ====================
 
-        // Record the choice in GameManager
-        if (GameManager.Instance != null && !string.IsNullOrEmpty(currentDialogueID))
+    private IEnumerator ExitDialogueRoutine()
+    {
+        yield return new WaitForSeconds(autoExitDelay);
+
+        string endedDialogueID = currentDialogueID;
+
+        DialogueIsPlaying = false;
+        isTyping = false;
+
+        if (dialoguePanel != null)
+            dialoguePanel.SetActive(false);
+
+        dialogueText.text = "";
+        if (nameText != null)
+            nameText.text = "";
+
+        HideChoices();
+
+        currentDialogueID = "";
+
+        // Fire events
+        OnDialogueEnded?.Invoke(endedDialogueID);
+        GameEvents.TriggerDialogueEnded(endedDialogueID);
+    }
+
+    // ==================== INK INTEGRATION ====================
+
+    private void BindInkVariables()
+    {
+        if (currentStory == null || GameManager.Instance == null) return;
+
+        List<string> variableNames = new List<string>();
+        foreach (string varName in currentStory.variablesState)
         {
-            GameManager.Instance.RecordChoice(currentDialogueID, choiceIndex);
+            variableNames.Add(varName);
         }
 
-        currentStory.ChooseChoiceIndex(choiceIndex);
-        ContinueStory();
+        foreach (string varName in variableNames)
+        {
+            object value = currentStory.variablesState[varName];
+
+            if (value is bool boolVal)
+            {
+                bool savedValue = GameManager.Instance.GetFlag(varName, boolVal);
+                currentStory.variablesState[varName] = savedValue;
+            }
+            else if (value is int intVal)
+            {
+                int savedValue = GameManager.Instance.GetFlag(varName, intVal);
+                currentStory.variablesState[varName] = savedValue;
+            }
+            else if (value is float floatVal)
+            {
+                float savedValue = GameManager.Instance.GetFlag(varName, floatVal);
+                currentStory.variablesState[varName] = savedValue;
+            }
+            else if (value is string stringVal)
+            {
+                string savedValue = GameManager.Instance.GetFlag(varName, stringVal);
+                currentStory.variablesState[varName] = savedValue;
+            }
+        }
+    }
+
+    private void SyncInkVariablesToGameManager()
+    {
+        if (currentStory == null || GameManager.Instance == null) return;
+
+        foreach (string varName in currentStory.variablesState)
+        {
+            object value = currentStory.variablesState[varName];
+
+            if (value is bool boolVal)
+                GameManager.Instance.SetFlag(varName, boolVal);
+            else if (value is int intVal)
+                GameManager.Instance.SetFlag(varName, intVal);
+            else if (value is float floatVal)
+                GameManager.Instance.SetFlag(varName, floatVal);
+            else if (value is string stringVal)
+                GameManager.Instance.SetFlag(varName, stringVal);
+        }
+    }
+
+    // ==================== UTILITY ====================
+
+    /// <summary>
+    /// Process Ink tags for character names, etc.
+    /// Example: "speaker: John" tag sets the name text
+    /// </summary>
+    private string ProcessTags(string text)
+    {
+        if (currentStory == null) return text;
+
+        foreach (string tag in currentStory.currentTags)
+        {
+            string[] parts = tag.Split(':');
+            if (parts.Length >= 2)
+            {
+                string key = parts[0].Trim().ToLower();
+                string value = parts[1].Trim();
+
+                if (key == "speaker" && nameText != null)
+                {
+                    nameText.text = value;
+                }
+            }
+        }
+
+        return text;
     }
 }
