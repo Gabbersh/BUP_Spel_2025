@@ -15,12 +15,14 @@ public class CharacterVisibility : MonoBehaviour
 
     void Update()
     {
+        if (characterRenderer == null) return;
+
         if (poi == null || poi.targetCamera == null) return;
 
-        bool poiActive = poi.targetCamera.IsOverridingToPOI(poi.cameraTarget.position);
+        bool poiActive = poi.targetCamera.IsInPOI;
 
-        bool cameraAtTarget = Vector3.Distance(poi.targetCamera.transform.position, poi.cameraTarget.position) <= activationDistance;
-
-        characterRenderer.enabled = poiActive && cameraAtTarget;
+        // Just check if POI is active, don't worry about exact distance during dialogue
+        // This way character shows as soon as camera starts moving to POI
+        characterRenderer.enabled = poiActive;
     }
 }

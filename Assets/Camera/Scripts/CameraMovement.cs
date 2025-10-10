@@ -54,6 +54,13 @@ public class CameraMovement : MonoBehaviour
     {
         if (railStart == null || railEnd == null) return;
 
+        if (DialogueManager.GetInstance() != null && DialogueManager.GetInstance().dialogueIsPlaying)
+        {
+            dragging = false;
+            velocity = 0f;
+            return;
+        }
+
         Vector2 inputDelta = Vector2.zero;
 
         // ----- Mouse Input (PC) -----
