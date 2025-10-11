@@ -16,6 +16,8 @@ public class Interactable : MonoBehaviour
 
     public event Action<Interactable> OnPickedUp;
 
+    public float DeactivateDelay => deactivateDelay; 
+
     void Update()
     {
         if (pickedUp && !finished)
@@ -33,7 +35,6 @@ public class Interactable : MonoBehaviour
                 if (Inventory.Instance != null)
                     Inventory.Instance.AddItem(this);
 
-                // Start countdown to deactivate
                 if (!isDeactivating)
                     StartCoroutine(DeactivateAfterDelay());
             }
@@ -44,12 +45,10 @@ public class Interactable : MonoBehaviour
     {
         if (!firstClickDone)
         {
-            // First click: pick up
             pickedUp = true;
             finished = false;
             firstClickDone = true;
 
-            // Immediately hide the highlight
             var highlight = GetComponentInChildren<HighlightDeactivator>();
             if (highlight != null)
                 highlight.DeactivateHighlight();
@@ -59,9 +58,9 @@ public class Interactable : MonoBehaviour
     private IEnumerator DeactivateAfterDelay()
     {
         isDeactivating = true;
+
         yield return new WaitForSeconds(deactivateDelay);
 
-        // mark so other systems know this object has been picked up
         var marker = GetComponent<PickedUpMarker>();
         if (marker == null) marker = gameObject.AddComponent<PickedUpMarker>();
         marker.pickedUp = true;
