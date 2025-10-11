@@ -41,11 +41,16 @@ public class QuestHintManager : MonoBehaviour
     {
         if (!questActive)
         {
+            // Deactivate everything and stop
             SetActiveAll(highlightObjects, false);
             SetActiveAll(interactableObjects, false);
             return;
         }
 
+        // Subscribe to interactables once at the start of the quest
+        SubscribeToInteractables();
+
+        // Set quest mode based on camera
         if (cameraMovement != null && cameraMovement.IsIdleOnRail)
             SetQuestMode(onRail: true);
         else
@@ -56,9 +61,7 @@ public class QuestHintManager : MonoBehaviour
     {
         SetActiveAll(highlightObjects, onRail);
         SetActiveAll(interactableObjects, !onRail);
-
-        if (!onRail)
-            SubscribeToInteractables();
+        // No repeated subscriptions here
     }
 
     // --- Camera Event Handlers ---
@@ -84,6 +87,7 @@ public class QuestHintManager : MonoBehaviour
             var interactable = obj.GetComponent<Interactable>();
             if (interactable != null)
             {
+                // Ensure only one subscription
                 interactable.OnPickedUp -= HandleInteractiblePickedUp;
                 interactable.OnPickedUp += HandleInteractiblePickedUp;
             }
@@ -104,14 +108,12 @@ public class QuestHintManager : MonoBehaviour
     private void EndQuest(Interactable pickedUp)
     {
         questActive = false;
+
+        // Deactivate highlights
         SetActiveAll(highlightObjects, false);
 
-        foreach (var obj in interactableObjects)
-        {
-            if (obj == null || obj == pickedUp.gameObject) continue;
-            obj.SetActive(false);
-        }
-
+        // Deactivate all interactables
+        SetActiveAll(interactableObjects, false);
     }
 
     private void SetActiveAll(GameObject[] objects, bool state)
