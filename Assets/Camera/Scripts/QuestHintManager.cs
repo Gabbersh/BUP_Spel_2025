@@ -5,8 +5,8 @@ public class QuestHintManager : MonoBehaviour
 {
     [Header("References")]
     public CameraMovement cameraMovement;
-    public GameObject[] highlightObjects;    // visual hints on rail
-    public GameObject[] interactableObjects; // interactibles that activate off-rail/at POI
+    public GameObject[] highlightObjects;
+    public GameObject[] interactableObjects;
 
     [Header("Debug")]
     public KeyCode toggleQuestKey = KeyCode.B;
@@ -14,7 +14,6 @@ public class QuestHintManager : MonoBehaviour
 
     private void Awake()
     {
-        // Ensure everything starts disabled
         SetActiveAll(highlightObjects, false);
         SetActiveAll(interactableObjects, false);
     }
@@ -94,28 +93,36 @@ public class QuestHintManager : MonoBehaviour
 
     private void HandleInteractiblePickedUp(Interactable interactable)
     {
-        Debug.Log($"Picked up {interactable.name}, ending quest...");
-        StartCoroutine(EndQuestAfterDelay(0.1f));
+        Debug.Log($"Picked up {interactable.name}, ending quest soon...");
+        StartCoroutine(EndQuestAfterDelay(interactable.DeactivateDelay + 0.1f, interactable));
     }
 
-    private IEnumerator EndQuestAfterDelay(float delay)
+    private IEnumerator EndQuestAfterDelay(float delay, Interactable pickedUp)
     {
+        Debug.Log($"Quest will end in {delay:F1} seconds (waiting for {pickedUp.name} to finish deactivating).");
         yield return new WaitForSeconds(delay);
-        EndQuest();
+        EndQuest(pickedUp);
     }
 
-    private void EndQuest()
+    private void EndQuest(Interactable pickedUp)
     {
         questActive = false;
         SetActiveAll(highlightObjects, false);
-        SetActiveAll(interactableObjects, false);
-        Debug.Log("Quest ended.");
+
+        foreach (var obj in interactableObjects)
+        {
+            if (obj == null || obj == pickedUp.gameObject) continue;
+            obj.SetActive(false);
+        }
+
+        Debug.Log($"Quest ended after picking up {pickedUp.name}.");
     }
 
     // --- Utility ---
     private void SetActiveAll(GameObject[] objects, bool state)
     {
         foreach (var obj in objects)
-            if (obj != null) obj.SetActive(state);
+            if (obj != null)
+                obj.SetActive(state);
     }
 }
