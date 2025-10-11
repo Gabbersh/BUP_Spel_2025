@@ -16,7 +16,7 @@ public class Interactable : MonoBehaviour
 
     public event Action<Interactable> OnPickedUp;
 
-    public float DeactivateDelay => deactivateDelay; // expose delay to QuestHintManager
+    public float DeactivateDelay => deactivateDelay; 
 
     void Update()
     {
@@ -58,7 +58,6 @@ public class Interactable : MonoBehaviour
     private IEnumerator DeactivateAfterDelay()
     {
         isDeactivating = true;
-        Debug.Log($"{name} — started deactivation coroutine at {Time.time}");
 
         yield return new WaitForSeconds(deactivateDelay);
 
@@ -72,7 +71,6 @@ public class Interactable : MonoBehaviour
         var rb = GetComponent<Rigidbody>();
         if (rb != null) rb.isKinematic = true;
 
-        Debug.Log($"{name} — deactivated after {deactivateDelay} seconds at {Time.time}");
         gameObject.SetActive(false);
     }
 }

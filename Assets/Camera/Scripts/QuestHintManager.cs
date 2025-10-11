@@ -33,7 +33,6 @@ public class QuestHintManager : MonoBehaviour
         if (Input.GetKeyDown(toggleQuestKey))
         {
             questActive = !questActive;
-            Debug.Log($"Quest {(questActive ? "Activated" : "Deactivated")}");
             UpdateQuestState();
         }
     }
@@ -93,13 +92,11 @@ public class QuestHintManager : MonoBehaviour
 
     private void HandleInteractiblePickedUp(Interactable interactable)
     {
-        Debug.Log($"Picked up {interactable.name}, ending quest soon...");
         StartCoroutine(EndQuestAfterDelay(interactable.DeactivateDelay + 0.1f, interactable));
     }
 
     private IEnumerator EndQuestAfterDelay(float delay, Interactable pickedUp)
     {
-        Debug.Log($"Quest will end in {delay:F1} seconds (waiting for {pickedUp.name} to finish deactivating).");
         yield return new WaitForSeconds(delay);
         EndQuest(pickedUp);
     }
@@ -115,10 +112,8 @@ public class QuestHintManager : MonoBehaviour
             obj.SetActive(false);
         }
 
-        Debug.Log($"Quest ended after picking up {pickedUp.name}.");
     }
 
-    // --- Utility ---
     private void SetActiveAll(GameObject[] objects, bool state)
     {
         foreach (var obj in objects)
