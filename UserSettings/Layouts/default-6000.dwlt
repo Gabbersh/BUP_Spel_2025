@@ -368,10 +368,10 @@ MonoBehaviour:
   m_LockTracker:
     m_IsLocked: 0
   m_FolderTreeState:
-    scrollPos: {x: 0, y: 185}
-    m_SelectedIDs: 8c970100
-    m_LastClickedID: 104332
-    m_ExpandedIDs: 000000001c9701001e97010020970100229701002497010026970100
+    scrollPos: {x: 0, y: 95.33331}
+    m_SelectedIDs: 1c9c0100
+    m_LastClickedID: 105500
+    m_ExpandedIDs: 000000002e9d0100309d0100329d0100349d0100369d0100389d01003a9d01003c9d01003e9d0100409d0100429d0100449d0100469d0100489d01004a9d01004c9d01004e9d0100509d0100
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -400,7 +400,7 @@ MonoBehaviour:
     scrollPos: {x: 0, y: 0}
     m_SelectedIDs: 
     m_LastClickedID: 0
-    m_ExpandedIDs: 000000001c9701001e97010020970100229701002497010026970100
+    m_ExpandedIDs: 000000002e9d0100309d0100329d0100349d0100369d0100389d01003a9d01003c9d01003e9d0100409d0100429d0100449d0100469d0100489d01004a9d01004c9d01004e9d0100509d0100
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -1080,6 +1080,20 @@ MonoBehaviour:
       layout: 4
       size: {x: 0, y: 0}
       sizeOverridden: 0
+    - dockPosition: 1
+      containerId: overlay-container--right
+      displayed: 0
+      id: unity-spline-inspector
+      index: 10
+      contents: '{"m_Layout":4,"m_Collapsed":false,"m_Folded":false,"m_Floating":false,"m_FloatingSnapOffset":{"x":0.0,"y":0.0},"m_SnapOffsetDelta":{"x":0.0,"y":0.0},"m_FloatingSnapCorner":0,"m_Size":{"x":0.0,"y":0.0},"m_SizeOverridden":false}'
+      floating: 0
+      collapsed: 0
+      snapOffset: {x: 0, y: 0}
+      snapOffsetDelta: {x: 0, y: 0}
+      snapCorner: 0
+      layout: 4
+      size: {x: 0, y: 0}
+      sizeOverridden: 0
     m_ContainerData:
     - containerId: overlay-toolbar__top
       scrollOffset: 0
@@ -1107,7 +1121,7 @@ MonoBehaviour:
   m_AudioPlay: 0
   m_DebugDrawModesUseInteractiveLightBakingData: 0
   m_Position:
-    m_Target: {x: 732.19073, y: 297.8844, z: 542.71436}
+    m_Target: {x: -225.1545, y: 33.534336, z: -51.34897}
     speed: 2
     m_Value: {x: 732.19073, y: 297.8844, z: 542.71436}
   m_RenderMode: 0
@@ -1155,11 +1169,11 @@ MonoBehaviour:
     m_GridAxis: 1
     m_gridOpacity: 0.5
   m_Rotation:
-    m_Target: {x: 0.12438422, y: -0.01328182, z: 0.0027044157, w: 0.9914943}
+    m_Target: {x: 0.1351325, y: -0.015420852, z: -0.008248679, w: 0.9939082}
     speed: 2
     m_Value: {x: -0.12438422, y: 0.01328182, z: -0.0027044157, w: -0.99149436}
   m_Size:
-    m_Target: 1267.627
+    m_Target: 0.8660254
     speed: 2
     m_Value: 1267.627
   m_Ortho:

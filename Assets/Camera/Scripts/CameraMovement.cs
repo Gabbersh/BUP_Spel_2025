@@ -7,11 +7,11 @@ public class CameraMovement : MonoBehaviour
     public Transform railEnd;
 
     [Header("Movement Settings")]
-    public float moveSpeed = 0.5f; // drag/swipe sensitivity
+    public float buttonSpeed = 1f; // constant speed while holding button
     public float fixedY = 5f;
 
     [Header("Momentum Settings")]
-    public float deceleration = 5f;
+    public float deceleration = 3f; // velocity decay after release
 
     [Header("POI Override")]
     public float overrideSpeed = 1f;
@@ -20,29 +20,25 @@ public class CameraMovement : MonoBehaviour
     private Vector3 overrideTargetPos;
     private Quaternion overrideTargetRot;
 
-    // Events for UI/other scripts
+    // Events
     public event System.Action OnLeftPOI;
     public event System.Action OnReturnedToRail;
     public event System.Action OnReachedPOI;
     public event System.Action OnLeftRail;
 
-    [Header("Transition Control")]
     private bool isTransitioning = false;
-
     public bool HasReachedPOI { get; private set; } = false;
-    public bool IsIdleOnRail =>
-    !isTransitioning && !overrideActive && !returningToRail &&
-    !dragging && Mathf.Abs(velocity) < 0.001f;
 
-    [Header("Rail Return")]
+    public bool IsIdleOnRail => !isTransitioning && !overrideActive && !returningToRail && Mathf.Abs(velocity) < 0.001f;
+
     private bool returningToRail = false;
     private Vector3 returnTargetPos;
     private Quaternion returnTargetRot;
 
     private float t = 0.5f; // position along rail [0,1]
-    private float velocity = 0f;
-    private bool dragging = false;
-    private Vector2 lastInputPos;
+    private float velocity = 0f; // current velocity along rail
+    private float externalInput = 0f; // -1 = left, 1 = right
+
     private Quaternion railOriginalRot;
 
     void Start()
@@ -54,66 +50,28 @@ public class CameraMovement : MonoBehaviour
     {
         if (railStart == null || railEnd == null) return;
 
-        if (DialogueManager.Instance?.DialogueIsPlaying == true)
-        {
-            dragging = false;
-            velocity = 0f;
-            return;
-        }
-
-        Vector2 inputDelta = Vector2.zero;
-
-        // ----- Mouse Input (PC) -----
-        if (Input.GetMouseButtonDown(0)) StartDragging(Input.mousePosition);
-        if (Input.GetMouseButton(0))
-        {
-            inputDelta = (Vector2)Input.mousePosition - lastInputPos;
-            lastInputPos = Input.mousePosition;
-            dragging = true;
-        }
-        if (Input.GetMouseButtonUp(0)) dragging = false;
-
-        // ----- Touch Input (Mobile) -----
-        if (Input.touchCount == 1)
-        {
-            Touch touch = Input.GetTouch(0);
-            switch (touch.phase)
-            {
-                case TouchPhase.Began:
-                    StartDragging(touch.position);
-                    break;
-                case TouchPhase.Moved:
-                    inputDelta = touch.deltaPosition;
-                    dragging = true;
-                    break;
-                case TouchPhase.Ended:
-                case TouchPhase.Canceled:
-                    dragging = false;
-                    break;
-            }
-        }
-
-        if (!overrideActive && !returningToRail)
-            HandleRailMovement(inputDelta);
-
+        HandleRailMovement();
         ApplyCameraPosition();
     }
 
-    private void HandleRailMovement(Vector2 inputDelta)
+    private void HandleRailMovement()
     {
-        if (dragging)
+        if (!overrideActive && !returningToRail)
         {
-            float deltaT = -inputDelta.x / Screen.width * moveSpeed;
-            t += deltaT;
-            velocity = deltaT / Time.deltaTime;
-        }
-        else if (Mathf.Abs(velocity) > 0.001f)
-        {
-            t += velocity * Time.deltaTime;
-            velocity = Mathf.MoveTowards(velocity, 0f, deceleration * Time.deltaTime);
-        }
+            if (Mathf.Abs(externalInput) > 0.001f)
+            {
+                // Constant velocity while button is held
+                velocity = externalInput * buttonSpeed;
+            }
+            else
+            {
+                // Decelerate velocity after button release
+                velocity = Mathf.MoveTowards(velocity, 0f, deceleration * Time.deltaTime);
+            }
 
-        t = Mathf.Clamp01(t);
+            t += velocity * Time.deltaTime;
+            t = Mathf.Clamp01(t);
+        }
     }
 
     private void ApplyCameraPosition()
@@ -122,6 +80,14 @@ public class CameraMovement : MonoBehaviour
             MoveTowardsTarget();
         else
             MoveAlongRail();
+    }
+
+    private void MoveAlongRail()
+    {
+        Vector3 railPos = Vector3.Lerp(railStart.position, railEnd.position, t);
+        railPos.y = fixedY;
+        transform.position = railPos;
+        transform.rotation = railOriginalRot;
     }
 
     private void MoveTowardsTarget()
@@ -141,32 +107,17 @@ public class CameraMovement : MonoBehaviour
             {
                 velocity = 0f;
                 HasReachedPOI = true;
-                OnReachedPOI?.Invoke();  // arrived at POI
+                OnReachedPOI?.Invoke();
             }
             else
             {
                 returningToRail = false;
                 HasReachedPOI = false;
-                OnReturnedToRail?.Invoke(); // back on rail
+                OnReturnedToRail?.Invoke();
             }
 
             isTransitioning = false;
         }
-    }
-
-    private void MoveAlongRail()
-    {
-        Vector3 railPos = Vector3.Lerp(railStart.position, railEnd.position, t);
-        railPos.y = fixedY;
-        transform.position = railPos;
-        transform.rotation = railOriginalRot;
-    }
-
-    private void StartDragging(Vector2 inputPos)
-    {
-        lastInputPos = inputPos;
-        dragging = true;
-        velocity = 0f;
     }
 
     // ----- POI Interaction -----
@@ -196,12 +147,16 @@ public class CameraMovement : MonoBehaviour
         isTransitioning = true;
         HasReachedPOI = false;
 
-        OnLeftPOI?.Invoke(); // leaving POI
+        OnLeftPOI?.Invoke();
     }
 
-    // ----- PUBLIC METHODS FOR OTHER SCRIPTS -----
-    public bool IsOverridingToPOI(Vector3 targetPos)
+    // ----- External Input for buttons -----
+    public void SetExternalInput(float input) => externalInput = input;
+
+    public void AddDeltaT(float delta)
     {
-        return overrideActive && overrideTargetPos == targetPos;
+        t += delta;
+        velocity = delta / Time.deltaTime;
+        t = Mathf.Clamp01(t);
     }
 }
