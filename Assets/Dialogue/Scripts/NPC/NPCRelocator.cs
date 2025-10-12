@@ -84,9 +84,10 @@ public class NPCRelocator : MonoBehaviour
             if (rule.triggerDialogueID != dialogueID)
                 continue;
 
+            // CRITICAL: Check if required choice was made (if specified)
             if (rule.requiredChoiceIndex != -1 && rule.requiredChoiceIndex != choiceIndex)
             {
-                DebugLog($"Choice mismatch: required {rule.requiredChoiceIndex}, got {choiceIndex}");
+                DebugLog($"Choice mismatch: required {rule.requiredChoiceIndex}, got {choiceIndex}. Skipping relocation.");
                 continue;
             }
 
