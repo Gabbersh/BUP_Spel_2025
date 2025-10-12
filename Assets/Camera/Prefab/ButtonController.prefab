@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2139190376300209149}
   - component: {fileID: 1658954108805450208}
+  - component: {fileID: 8572495440004892012}
   m_Layer: 0
   m_Name: ButtonController
   m_TagString: Untagged
@@ -46,3 +47,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ReturnButtonController
   cameraMovement: {fileID: 0}
   returnButton: {fileID: 0}
+--- !u!114 &8572495440004892012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5899177347684287708}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a9472fd88679954ebe720c98cd5b9dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RailButtonController
+  cameraMovement: {fileID: 0}
+  leftButtonObject: {fileID: 0}
+  rightButtonObject: {fileID: 0}
+  buttonSpeed: 1
+  hideThreshold: 0.01

@@ -47,6 +47,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HidingObjects
   objectsToToggle:
   - {fileID: 0}
+  hideDuringIntro:
+  - {fileID: 0}
   cameraMovement: {fileID: 0}
 --- !u!114 &61909636946570554
 MonoBehaviour:
