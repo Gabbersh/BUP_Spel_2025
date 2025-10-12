@@ -44,7 +44,6 @@ GameObject:
   - component: {fileID: 7996870834218108281}
   - component: {fileID: 4159452429389298763}
   - component: {fileID: 6566134454366807336}
-  - component: {fileID: 2344526449601105436}
   m_Layer: 2
   m_Name: VisualHintBusStop
   m_TagString: Untagged
@@ -61,7 +60,7 @@ Transform:
   m_GameObject: {fileID: 8237856365660501830}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 73.985016, y: -22.151, z: 17.15739}
+  m_LocalPosition: {x: -0.18, y: -0.67, z: 2.02}
   m_LocalScale: {x: 3.380675, y: 2.4380186, z: 1.9849342}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -144,16 +143,3 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &2344526449601105436
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8237856365660501830}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 612375318d143454b8bf7ac39ef6219e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::IgnoreUntilActivated
-  isActive: 0
