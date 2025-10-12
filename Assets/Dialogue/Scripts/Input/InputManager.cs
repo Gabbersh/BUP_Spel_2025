@@ -43,12 +43,14 @@ public class InputManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Detect touch or mouse input, ignoring UI elements.
-    /// Now ALWAYS detects input - subscribers decide how to handle it.
+    /// Detect touch or mouse input.
+    /// During dialogue, ALWAYS fire event (ignore UI check).
+    /// Outside dialogue, only fire if not over UI.
     /// </summary>
     private void DetectInput()
     {
         bool inputDetected = false;
+        bool isDialogueActive = DialogueManager.Instance != null && DialogueManager.Instance.DialogueIsPlaying;
 
         // Touch input (mobile)
         if (Input.touchCount > 0)
@@ -56,13 +58,31 @@ public class InputManager : MonoBehaviour
             Touch touch = Input.GetTouch(0);
             if (touch.phase == TouchPhase.Began)
             {
-                inputDetected = !IsPointerOverUI(touch.fingerId);
+                // During dialogue: always detect (even over UI)
+                // Outside dialogue: only detect if not over UI
+                if (isDialogueActive)
+                {
+                    inputDetected = true;
+                }
+                else
+                {
+                    inputDetected = !IsPointerOverUI(touch.fingerId);
+                }
             }
         }
         // Mouse input (editor/desktop)
         else if (Input.GetMouseButtonDown(0))
         {
-            inputDetected = !IsPointerOverUI();
+            // During dialogue: always detect (even over UI)
+            // Outside dialogue: only detect if not over UI
+            if (isDialogueActive)
+            {
+                inputDetected = true;
+            }
+            else
+            {
+                inputDetected = !IsPointerOverUI();
+            }
         }
 
         if (inputDetected)

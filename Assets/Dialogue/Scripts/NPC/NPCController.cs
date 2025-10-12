@@ -1,5 +1,4 @@
-using System.Collections.Generic;
-using System.Net.NetworkInformation;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -18,7 +17,6 @@ public class NPCController : MonoBehaviour
 
     [Header("Dialogues")]
     [SerializeField] private List<NPCDialogue> dialogues = new List<NPCDialogue>();
-    [SerializeField] private bool autoStartFirstDialogue = false;
 
     [Header("Visual Feedback")]
     [SerializeField] private GameObject availableIndicator; // Optional: exclamation mark, etc.
@@ -31,6 +29,8 @@ public class NPCController : MonoBehaviour
     private int currentDialogueIndex = 0;
     private bool isWaitingAtPOI = false;
     private CameraMovement cameraMovement;
+    private float lastDialogueEndTime = -999f;
+    private float dialogueCooldown = 0.5f; // Prevent immediate re-trigger after dialogue ends
 
     // Properties
     public string NPCID => npcID;
@@ -171,10 +171,15 @@ public class NPCController : MonoBehaviour
         if (!isWaitingAtPOI || !IsAvailable) return;
         if (DialogueManager.Instance == null || DialogueManager.Instance.DialogueIsPlaying) return;
 
-        if (currentDialogueIndex == 0 && autoStartFirstDialogue)
+        // COOLDOWN: Don't auto-start dialogue immediately after one just ended
+        if (Time.time - lastDialogueEndTime < dialogueCooldown)
         {
-            StartCurrentDialogue();
+            Debug.Log($"[NPC:{npcID}] Cooldown active - waiting {dialogueCooldown - (Time.time - lastDialogueEndTime):F2}s before auto-start");
+            return;
         }
+
+        // Auto-start any available dialogue
+        StartCurrentDialogue();
     }
 
     public void TryInteract()
@@ -196,6 +201,8 @@ public class NPCController : MonoBehaviour
 
     private void StartCurrentDialogue()
     {
+
+
         if (currentDialogueIndex >= dialogues.Count)
         {
             DebugLog("No more dialogues");
@@ -204,13 +211,24 @@ public class NPCController : MonoBehaviour
 
         NPCDialogue dialogue = dialogues[currentDialogueIndex];
 
+        if (dialogue.requirement != null && ProgressionManager.Instance != null)
+        {
+            bool canPlay = ProgressionManager.Instance.CanPlayDialogue(dialogue.requirement);
+            if (!canPlay)
+            {
+                Debug.Log($"[NPC:{npcID}] Dialogue blocked — missing requirements for '{dialogue.requirement.dialogueID}'");
+                return;
+            }
+        }
+
         if (dialogue.inkJSON == null)
         {
             Debug.LogError($"[NPCController] {npcID} dialogue {currentDialogueIndex} has no Ink JSON!");
             return;
         }
 
-        DebugLog($"Starting dialogue: {dialogue.requirement?.dialogueID}");
+        string dialogueIDToStart = dialogue.requirement?.dialogueID ?? "NO_ID";
+        Debug.Log($"[NPC:{npcID}] Starting dialogue at index {currentDialogueIndex}, ID: '{dialogueIDToStart}', InkJSON: {dialogue.inkJSON.name}");
 
         // Subscribe to dialogue events
         if (DialogueManager.Instance != null)
@@ -231,27 +249,78 @@ public class NPCController : MonoBehaviour
             DialogueManager.Instance.OnDialogueEnded -= OnDialogueComplete;
         }
 
-        DebugLog($"Dialogue complete: {dialogueID}");
+        // Set cooldown timer
+        lastDialogueEndTime = Time.time;
 
-        // Check if we should move to next dialogue
+        Debug.Log($"[NPC:{npcID}] OnDialogueComplete called for dialogueID: '{dialogueID}', current index: {currentDialogueIndex}");
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.MarkDialogueComplete(dialogueID);
+
+        // CRITICAL FIX: Only advance if dialogue was actually completed (not cancelled with return button)
+        bool isComplete = GameManager.Instance != null && GameManager.Instance.IsDialogueComplete(dialogueID);
+        Debug.Log($"[NPC:{npcID}] Is dialogue complete? {isComplete}");
+
+        if (!isComplete)
+        {
+            Debug.Log($"[NPC:{npcID}] Dialogue was cancelled/interrupted - NOT advancing to next dialogue");
+            UpdateState();
+            return;
+        }
+
+        // Get the current dialogue BEFORE checking anything else
+        if (currentDialogueIndex >= dialogues.Count)
+        {
+            Debug.LogWarning($"[NPC:{npcID}] currentDialogueIndex {currentDialogueIndex} is out of range!");
+            UpdateState();
+            return;
+        }
+
         NPCDialogue currentDialogue = dialogues[currentDialogueIndex];
 
+        // Verify this is the dialogue that just completed
+        if (currentDialogue.requirement != null &&
+            !string.IsNullOrEmpty(currentDialogue.requirement.dialogueID) &&
+            currentDialogue.requirement.dialogueID != dialogueID)
+        {
+            Debug.LogWarning($"[NPC:{npcID}] Dialogue ID mismatch! Expected '{currentDialogue.requirement.dialogueID}' but got '{dialogueID}'");
+        }
+
+        // Check if we should stay on this dialogue (wrong choice scenario)
         if (currentDialogue.requirement != null && ProgressionManager.Instance != null)
         {
             bool progressionMet = ProgressionManager.Instance.CanPlayDialogue(currentDialogue.requirement);
 
-            // If still can't progress, stay on this dialogue (wrong choice scenario)
             if (!progressionMet && currentDialogue.repeatUntilCorrectChoice)
             {
-                DebugLog("Wrong choice - staying on this dialogue");
+                Debug.Log($"[NPC:{npcID}] Wrong choice - staying on this dialogue");
                 UpdateState();
                 return;
             }
         }
 
-        // Move to next dialogue
+        // Check if this is the last dialogue AND it should repeat
+        bool isLastDialogue = currentDialogueIndex >= dialogues.Count - 1;
+        bool shouldRepeat = currentDialogue.requirement != null && !currentDialogue.requirement.oneTimeOnly;
+
+        if (isLastDialogue && shouldRepeat)
+        {
+            Debug.Log($"[NPC:{npcID}] Last dialogue set to repeat - staying on this dialogue");
+            UpdateState();
+            return;
+        }
+
+        // Move to next dialogue (even if it's the last one, so NPC enters Completed state)
         currentDialogueIndex++;
-        DebugLog($"Advanced to dialogue index: {currentDialogueIndex}");
+
+        if (isLastDialogue)
+        {
+            Debug.Log($"[NPC:{npcID}] ✓ COMPLETED all dialogues (advanced to index: {currentDialogueIndex})");
+        }
+        else
+        {
+            Debug.Log($"[NPC:{npcID}] ✓ ADVANCED to dialogue index: {currentDialogueIndex}");
+        }
 
         UpdateState();
         GameEvents.TriggerProgressionChanged();
@@ -265,6 +334,93 @@ public class NPCController : MonoBehaviour
         {
             availableIndicator.SetActive(currentState == NPCState.Available);
         }
+    }
+
+    // ==================== RELOCATION SUPPORT ====================
+
+    /// <summary>
+    /// Move this NPC to a new POI
+    /// </summary>
+    public void RelocateToNewPOI(PointOfInterest newPOI, bool disableOldPOI = true)
+    {
+        if (newPOI == null)
+        {
+            Debug.LogWarning($"[NPCController] Cannot relocate {npcID} - newPOI is null");
+            return;
+        }
+
+        Debug.Log($"[NPC:{npcID}] ========== RELOCATING to {newPOI.name} ==========");
+        Debug.Log($"[NPC:{npcID}] Current dialogue index before relocation: {currentDialogueIndex}");
+
+        // Store old POI for optional disabling
+        PointOfInterest oldPOI = associatedPOI;
+
+        // Update to new POI
+        associatedPOI = newPOI;
+
+        // Debug log to verify POI change
+        Debug.Log($"[NPC:{npcID}] Associated POI changed from {oldPOI?.name} to {associatedPOI.name}");
+
+        // Use characterPosition if assigned, otherwise use POI position
+        if (newPOI.characterPosition != null)
+        {
+            transform.position = newPOI.characterPosition.position;
+            transform.rotation = newPOI.characterPosition.rotation;
+            Debug.Log($"[NPC:{npcID}] Using characterPosition for placement");
+        }
+        else
+        {
+            transform.position = newPOI.transform.position;
+            Debug.LogWarning($"[NPC:{npcID}] {newPOI.name} has no characterPosition assigned! Using POI position instead.");
+        }
+
+        // Optionally disable old POI
+        if (disableOldPOI && oldPOI != null)
+        {
+            oldPOI.gameObject.SetActive(false);
+        }
+
+        // Update character visibility component if it exists
+        CharacterVisibility visibility = GetComponent<CharacterVisibility>();
+        if (visibility != null)
+        {
+            visibility.poi = newPOI;
+        }
+
+        // Save relocation flag
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SetFlag($"NPC_{npcID}_relocated", true);
+        }
+
+        // IMPORTANT: Reset cooldown to prevent immediate dialogue trigger
+        // Give time for dialogue index to advance
+        lastDialogueEndTime = Time.time;
+        Debug.Log($"[NPC:{npcID}] Reset cooldown timer after relocation");
+
+        // Update NPC state
+        UpdateState();
+        UpdateVisualIndicators();
+
+        Debug.Log($"[NPC:{npcID}] Current dialogue index after relocation: {currentDialogueIndex}");
+        Debug.Log($"[NPC:{npcID}] ========== RELOCATION COMPLETE ==========");
+    }
+
+    /// <summary>
+    /// Check if this NPC has been relocated
+    /// </summary>
+    public bool HasBeenRelocated()
+    {
+        if (GameManager.Instance == null) return false;
+        return GameManager.Instance.GetFlag($"NPC_{npcID}_relocated", false);
+    }
+
+    /// <summary>
+    /// Get current POI (useful for external systems)
+    /// </summary>
+    public PointOfInterest GetCurrentPOI()
+    {
+        return associatedPOI;
     }
 
     // ==================== PUBLIC API ====================
