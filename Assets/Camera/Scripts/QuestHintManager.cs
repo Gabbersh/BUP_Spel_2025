@@ -12,6 +12,8 @@ public class QuestHintManager : MonoBehaviour
     public KeyCode toggleQuestKey = KeyCode.B;
     public bool questActive = false;
 
+    private bool questEnding = false;
+
     private void Awake()
     {
         SetActiveAll(highlightObjects, false);
@@ -41,9 +43,10 @@ public class QuestHintManager : MonoBehaviour
     {
         if (!questActive)
         {
-            // Deactivate everything and stop
+            questEnding = true; // prevent flicker while deactivating
             SetActiveAll(highlightObjects, false);
             SetActiveAll(interactableObjects, false);
+            StartCoroutine(ResetQuestEndingFlag());
             return;
         }
 
@@ -60,8 +63,10 @@ public class QuestHintManager : MonoBehaviour
     private void SetQuestMode(bool onRail)
     {
         SetActiveAll(highlightObjects, onRail);
-        SetActiveAll(interactableObjects, !onRail);
-        // No repeated subscriptions here
+
+        // Only activate interactables if quest is active and not ending
+        if (!questEnding)
+            SetActiveAll(interactableObjects, !onRail);
     }
 
     // --- Camera Event Handlers ---
@@ -108,12 +113,20 @@ public class QuestHintManager : MonoBehaviour
     private void EndQuest(Interactable pickedUp)
     {
         questActive = false;
+        questEnding = true;
 
-        // Deactivate highlights
+        // Deactivate highlights and all interactables
         SetActiveAll(highlightObjects, false);
-
-        // Deactivate all interactables
         SetActiveAll(interactableObjects, false);
+
+        // Reset ending flag next frame
+        StartCoroutine(ResetQuestEndingFlag());
+    }
+
+    private IEnumerator ResetQuestEndingFlag()
+    {
+        yield return null; // wait one frame
+        questEnding = false;
     }
 
     private void SetActiveAll(GameObject[] objects, bool state)
