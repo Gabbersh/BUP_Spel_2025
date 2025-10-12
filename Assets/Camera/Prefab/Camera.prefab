@@ -117,7 +117,7 @@ MonoBehaviour:
   playIntroAtStart: 1
   introStartPoint: {fileID: 0}
   introTargetPoint: {fileID: 0}
-  introDuration: 5
+  introDuration: 10
   introCurve:
     serializedVersion: 2
     m_Curve:
