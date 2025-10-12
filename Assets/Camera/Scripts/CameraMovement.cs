@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using UnityEngine;
 
 public class CameraMovement : MonoBehaviour
 {
@@ -19,6 +20,16 @@ public class CameraMovement : MonoBehaviour
     private bool overrideActive = false;
     private Vector3 overrideTargetPos;
     private Quaternion overrideTargetRot;
+
+    // Intro Settings
+    [Header("Intro Settings")]
+    public bool playIntroAtStart = true;
+    public Transform introStartPoint;
+    public Transform introTargetPoint; 
+    public float introDuration = 3f;
+    public AnimationCurve introCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+
+    private bool introPlaying = false; 
 
     // Events
     public event System.Action OnLeftPOI;
@@ -44,11 +55,18 @@ public class CameraMovement : MonoBehaviour
     void Start()
     {
         railOriginalRot = transform.rotation;
+
+        if (playIntroAtStart && introStartPoint != null && introTargetPoint != null)
+        {
+            transform.position = introStartPoint.position;
+            transform.rotation = introStartPoint.rotation;
+            StartCoroutine(PlayIntroSequence());
+        }
     }
 
     void Update()
     {
-        if (railStart == null || railEnd == null) return;
+        if (railStart == null || railEnd == null || introPlaying) return;
 
         HandleRailMovement();
         ApplyCameraPosition();
@@ -142,6 +160,11 @@ public class CameraMovement : MonoBehaviour
     {
         if (isTransitioning) return;
 
+        Vector3 railPos = Vector3.Lerp(railStart.position, railEnd.position, t);
+        railPos.y = fixedY;
+        returnTargetPos = railPos;
+        returnTargetRot = railOriginalRot;
+
         overrideActive = false;
         returningToRail = true;
         isTransitioning = true;
@@ -151,12 +174,73 @@ public class CameraMovement : MonoBehaviour
     }
 
     // ----- External Input for buttons -----
-    public void SetExternalInput(float input) => externalInput = input;
+    public void SetExternalInput(float input)
+    {
+        if (!introPlaying)
+            externalInput = input;
+        else
+            externalInput = 0f; // Disable input during intro
+    }
 
     public void AddDeltaT(float delta)
     {
         t += delta;
         velocity = delta / Time.deltaTime;
         t = Mathf.Clamp01(t);
+    }
+
+    // Intro coroutine
+    private IEnumerator PlayIntroSequence()
+    {
+        introPlaying = true;
+        OnLeftRail?.Invoke();
+        float time = 0f;
+
+        Vector3 startPos = introStartPoint.position;
+        Quaternion startRot = introStartPoint.rotation;
+        Vector3 endPos = introTargetPoint.position;
+        Quaternion endRot = introTargetPoint.rotation;
+
+        while (time < introDuration)
+        {
+            float normalizedTime = time / introDuration;
+            float curveValue = introCurve.Evaluate(normalizedTime);
+
+            transform.position = Vector3.Lerp(startPos, endPos, curveValue);
+            transform.rotation = Quaternion.Slerp(startRot, endRot, curveValue);
+
+            time += Time.deltaTime;
+            yield return null;
+        }
+
+        transform.position = endPos;
+        transform.rotation = endRot;
+
+        introPlaying = false;
+
+        overrideActive = true;
+        overrideTargetPos = endPos;
+        overrideTargetRot = endRot;
+        HasReachedPOI = true;
+        OnReachedPOI?.Invoke();
+
+        t = GetClosestTOnRail(endPos);
+        returnTargetPos = Vector3.Lerp(railStart.position, railEnd.position, t);
+        returnTargetPos.y = fixedY;
+        returnTargetRot = railOriginalRot;
+    }
+
+    private float GetClosestTOnRail(Vector3 position)
+    {
+        if (railStart == null || railEnd == null)
+            return 0.5f;
+
+        Vector3 a = railStart.position;
+        Vector3 b = railEnd.position;
+        Vector3 ab = b - a;
+        Vector3 ap = position - a;
+
+        float tProjected = Vector3.Dot(ap, ab) / ab.sqrMagnitude;
+        return Mathf.Clamp01(tProjected);
     }
 }
