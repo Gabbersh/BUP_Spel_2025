@@ -31,6 +31,7 @@ public class NPCController : MonoBehaviour
     private CameraMovement cameraMovement;
     private float lastDialogueEndTime = -999f;
     private float dialogueCooldown = 0.5f; // Prevent immediate re-trigger after dialogue ends
+    private bool hasLeftPOISinceLastDialogue = true; // Require player to leave and return for repeat dialogues
 
     // Properties
     public string NPCID => npcID;
@@ -163,7 +164,15 @@ public class NPCController : MonoBehaviour
             associatedPOI.cameraTarget.position
         ) < interactionDistance;
 
+        bool wasWaitingAtPOI = isWaitingAtPOI;
         isWaitingAtPOI = atPOI && closeEnough;
+
+        // Track when player leaves POI - allows dialogue to restart on return
+        if (wasWaitingAtPOI && !isWaitingAtPOI)
+        {
+            hasLeftPOISinceLastDialogue = true;
+            Debug.Log($"[NPC:{npcID}] Player left POI - dialogue can restart on return");
+        }
     }
 
     private void HandleAutoDialogue()
@@ -175,6 +184,14 @@ public class NPCController : MonoBehaviour
         if (Time.time - lastDialogueEndTime < dialogueCooldown)
         {
             Debug.Log($"[NPC:{npcID}] Cooldown active - waiting {dialogueCooldown - (Time.time - lastDialogueEndTime):F2}s before auto-start");
+            return;
+        }
+
+        // IMPORTANT: Require player to leave and return to POI before auto-starting again
+        // This prevents immediate dialogue restart for repeat scenarios (wrong choice)
+        if (!hasLeftPOISinceLastDialogue)
+        {
+            Debug.Log($"[NPC:{npcID}] Player must leave POI and return to restart dialogue");
             return;
         }
 
@@ -201,8 +218,6 @@ public class NPCController : MonoBehaviour
 
     private void StartCurrentDialogue()
     {
-
-
         if (currentDialogueIndex >= dialogues.Count)
         {
             DebugLog("No more dialogues");
@@ -210,16 +225,6 @@ public class NPCController : MonoBehaviour
         }
 
         NPCDialogue dialogue = dialogues[currentDialogueIndex];
-
-        if (dialogue.requirement != null && ProgressionManager.Instance != null)
-        {
-            bool canPlay = ProgressionManager.Instance.CanPlayDialogue(dialogue.requirement);
-            if (!canPlay)
-            {
-                Debug.Log($"[NPC:{npcID}] Dialogue blocked — missing requirements for '{dialogue.requirement.dialogueID}'");
-                return;
-            }
-        }
 
         if (dialogue.inkJSON == null)
         {
@@ -229,6 +234,9 @@ public class NPCController : MonoBehaviour
 
         string dialogueIDToStart = dialogue.requirement?.dialogueID ?? "NO_ID";
         Debug.Log($"[NPC:{npcID}] Starting dialogue at index {currentDialogueIndex}, ID: '{dialogueIDToStart}', InkJSON: {dialogue.inkJSON.name}");
+
+        // Reset flag - player must leave and return again after this dialogue
+        hasLeftPOISinceLastDialogue = false;
 
         // Subscribe to dialogue events
         if (DialogueManager.Instance != null)
@@ -252,50 +260,43 @@ public class NPCController : MonoBehaviour
         // Set cooldown timer
         lastDialogueEndTime = Time.time;
 
-        Debug.Log($"[NPC:{npcID}] OnDialogueComplete called for dialogueID: '{dialogueID}', current index: {currentDialogueIndex}");
+        Debug.Log($"[NPC:{npcID}] OnDialogueComplete for '{dialogueID}', index: {currentDialogueIndex}");
 
-        if (GameManager.Instance != null)
-            GameManager.Instance.MarkDialogueComplete(dialogueID);
-
-        // CRITICAL FIX: Only advance if dialogue was actually completed (not cancelled with return button)
-        bool isComplete = GameManager.Instance != null && GameManager.Instance.IsDialogueComplete(dialogueID);
-        Debug.Log($"[NPC:{npcID}] Is dialogue complete? {isComplete}");
-
-        if (!isComplete)
-        {
-            Debug.Log($"[NPC:{npcID}] Dialogue was cancelled/interrupted - NOT advancing to next dialogue");
-            UpdateState();
-            return;
-        }
-
-        // Get the current dialogue BEFORE checking anything else
+        // Get the current dialogue
         if (currentDialogueIndex >= dialogues.Count)
         {
-            Debug.LogWarning($"[NPC:{npcID}] currentDialogueIndex {currentDialogueIndex} is out of range!");
+            Debug.LogWarning($"[NPC:{npcID}] Index out of range!");
             UpdateState();
             return;
         }
 
         NPCDialogue currentDialogue = dialogues[currentDialogueIndex];
 
-        // Verify this is the dialogue that just completed
-        if (currentDialogue.requirement != null &&
-            !string.IsNullOrEmpty(currentDialogue.requirement.dialogueID) &&
-            currentDialogue.requirement.dialogueID != dialogueID)
+        // DIRECT CHOICE CHECK: If repeatUntilCorrectChoice is true, check if correct choice was made
+        if (currentDialogue.repeatUntilCorrectChoice &&
+            currentDialogue.requirement != null &&
+            currentDialogue.requirement.requiredChoices != null &&
+            currentDialogue.requirement.requiredChoices.Count > 0 &&
+            GameManager.Instance != null)
         {
-            Debug.LogWarning($"[NPC:{npcID}] Dialogue ID mismatch! Expected '{currentDialogue.requirement.dialogueID}' but got '{dialogueID}'");
-        }
+            // Get the last choice made for this dialogue
+            int lastChoice = GameManager.Instance.GetLastChoice(dialogueID, -1);
 
-        // Check if we should stay on this dialogue (wrong choice scenario)
-        if (currentDialogue.requirement != null && ProgressionManager.Instance != null)
-        {
-            bool progressionMet = ProgressionManager.Instance.CanPlayDialogue(currentDialogue.requirement);
+            // Check if it's in the acceptable choices list
+            var req = currentDialogue.requirement.requiredChoices[0];
+            bool isCorrectChoice = req.acceptableChoices.Contains(lastChoice);
 
-            if (!progressionMet && currentDialogue.repeatUntilCorrectChoice)
+            Debug.Log($"[NPC:{npcID}] Last choice: {lastChoice}, Acceptable: [{string.Join(",", req.acceptableChoices)}], Correct: {isCorrectChoice}");
+
+            if (!isCorrectChoice)
             {
-                Debug.Log($"[NPC:{npcID}] Wrong choice - staying on this dialogue");
+                Debug.Log($"[NPC:{npcID}] ❌ WRONG CHOICE - Staying on this dialogue");
                 UpdateState();
                 return;
+            }
+            else
+            {
+                Debug.Log($"[NPC:{npcID}] ✓ CORRECT CHOICE - Advancing");
             }
         }
 
@@ -305,13 +306,14 @@ public class NPCController : MonoBehaviour
 
         if (isLastDialogue && shouldRepeat)
         {
-            Debug.Log($"[NPC:{npcID}] Last dialogue set to repeat - staying on this dialogue");
+            Debug.Log($"[NPC:{npcID}] Last dialogue set to repeat");
             UpdateState();
             return;
         }
 
-        // Move to next dialogue (even if it's the last one, so NPC enters Completed state)
+        // Advance to next dialogue
         currentDialogueIndex++;
+        hasLeftPOISinceLastDialogue = true;
 
         if (isLastDialogue)
         {

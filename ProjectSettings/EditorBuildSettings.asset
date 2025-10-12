@@ -17,7 +17,7 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/DialogueSystem.unity
     guid: dc70672cf53a3cf4eb24761fa63f36dc
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/MovementButtons.unity
     guid: 0324a61e42c659f4fb54a70bd9de360f
   m_configObjects:
