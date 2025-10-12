@@ -50,6 +50,8 @@ public class CameraMovement : MonoBehaviour
     private float velocity = 0f; // current velocity along rail
     private float externalInput = 0f; // -1 = left, 1 = right
 
+    public float RailPosition01 => t; // normalized 0-1 position along rail
+
     private Quaternion railOriginalRot;
 
     void Start()
