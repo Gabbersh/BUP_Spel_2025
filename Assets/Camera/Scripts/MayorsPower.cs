@@ -1,30 +1,57 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class MayorsPower : MonoBehaviour
 {
+    [System.Serializable]
+    public class ChoicePowerEffect
+    {
+        [Tooltip("Dialogue ID to watch")]
+        public string dialogueID;
+
+        [Tooltip("Choice index (0 = first choice, 1 = second, etc.)")]
+        public int choiceIndex;
+
+        [Tooltip("Power change amount (positive or negative)")]
+        public int powerChange;
+    }
+
     [Header("Core Settings")]
-    [SerializeField] Image bar;
-    [SerializeField] int current = 100;
-    [SerializeField] int max = 100;
+    [SerializeField] private Image bar;
+    [SerializeField] private int current = 100;
+    [SerializeField] private int max = 100;
 
     [Header("Animation Speed")]
-    [SerializeField, Range(0, 0.5f)] float animationTime = 0.5f;
+    [SerializeField, Range(0, 0.5f)] private float animationTime = 0.5f;
     private Coroutine _fillRoutine;
 
     [Header("Gradient Settings")]
-    [SerializeField] bool useGradient;
-    [SerializeField] Gradient barGradient;
+    [SerializeField] private bool useGradient;
+    [SerializeField] private Gradient barGradient;
+
+    [Header("Choice Integration")]
+    [SerializeField] private List<ChoicePowerEffect> choicePowerEffects = new List<ChoicePowerEffect>();
 
     private void Start()
     {
         UpdateBar();
         UseGradient();
+
+        // Subscribe to choice events from GameEvents
+        GameEvents.OnChoiceMade += OnChoiceMade;
+    }
+
+    private void OnDestroy()
+    {
+        // Unsubscribe to prevent memory leaks
+        GameEvents.OnChoiceMade -= OnChoiceMade;
     }
 
     private void Update()
     {
+        // Debug testing keys
         if (Input.GetKeyDown(KeyCode.M))
         {
             ChangeBarByAmount(10);
@@ -33,8 +60,25 @@ public class MayorsPower : MonoBehaviour
         {
             ChangeBarByAmount(-10);
         }
-        //UpdateBar();
     }
+
+    // ==================== CHOICE HANDLING ====================
+
+    private void OnChoiceMade(string dialogueID, int choiceIndex)
+    {
+        // Find if this choice affects power
+        foreach (var effect in choicePowerEffects)
+        {
+            if (effect.dialogueID == dialogueID && effect.choiceIndex == choiceIndex)
+            {
+                ChangeBarByAmount(effect.powerChange);
+                Debug.Log($"[MayorsPower] Choice made: {effect.powerChange:+0;-0} power from {dialogueID}");
+                break; // Only apply first matching effect
+            }
+        }
+    }
+
+    // ==================== POWER BAR LOGIC ====================
 
     public bool ChangeBarByAmount(int amount)
     {
@@ -65,7 +109,7 @@ public class MayorsPower : MonoBehaviour
 
     private void TriggerFillAnimation()
     {
-        float targetfill = (float) current / max;
+        float targetfill = (float)current / max;
 
         if (Mathf.Approximately(bar.fillAmount, targetfill))
             return;
@@ -101,5 +145,22 @@ public class MayorsPower : MonoBehaviour
             return;
 
         bar.color = barGradient.Evaluate(bar.fillAmount);
+    }
+
+    // ==================== PUBLIC API ====================
+
+    public int GetCurrentPower()
+    {
+        return current;
+    }
+
+    public int GetMaxPower()
+    {
+        return max;
+    }
+
+    public float GetPowerPercentage()
+    {
+        return (float)current / max;
     }
 }
