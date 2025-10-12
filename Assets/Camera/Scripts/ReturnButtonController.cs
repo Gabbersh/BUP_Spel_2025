@@ -15,6 +15,17 @@ public class ReturnButtonController : MonoBehaviour
         cameraMovement.OnReachedPOI += ShowButton;
         cameraMovement.OnLeftPOI += HideButton;
         cameraMovement.OnReturnedToRail += HideButton;
+
+        // Subscribe to dialogue events to disable button during dialogue
+        GameEvents.OnDialogueStarted += OnDialogueStarted;
+        GameEvents.OnDialogueEnded += OnDialogueEnded;
+    }
+
+    private void OnDestroy()
+    {
+        // Unsubscribe from events
+        GameEvents.OnDialogueStarted -= OnDialogueStarted;
+        GameEvents.OnDialogueEnded -= OnDialogueEnded;
     }
 
     private void ShowButton()
@@ -27,14 +38,23 @@ public class ReturnButtonController : MonoBehaviour
         returnButton.gameObject.SetActive(false);
     }
 
+    private void OnDialogueStarted(string dialogueID)
+    {
+        // Disable button during dialogue
+        returnButton.interactable = false;
+        Debug.Log("[ReturnButton] Disabled during dialogue");
+    }
+
+    private void OnDialogueEnded(string dialogueID)
+    {
+        // Re-enable button after dialogue
+        returnButton.interactable = true;
+        Debug.Log("[ReturnButton] Re-enabled after dialogue");
+    }
+
     void OnReturnPressed()
     {
-        // Force exit dialogue if currently playing
-        if (DialogueManager.Instance?.DialogueIsPlaying == true)
-        {
-            DialogueManager.Instance.ExitDialogueMode();
-        }
-
+        // No need to check DialogueIsPlaying anymore - button is disabled during dialogue
         cameraMovement.ReturnToRail();
     }
 }

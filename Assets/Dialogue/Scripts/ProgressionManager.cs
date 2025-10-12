@@ -33,19 +33,12 @@ public class ProgressionManager : MonoBehaviour
         if (requirement == null || GameManager.Instance == null)
             return true;
 
-        Debug.Log($"[Progression] Checking if dialogue '{requirement.dialogueID}' can play...");
-
-        if (requirement.requiredDialogues != null)
+        // Check if already completed and shouldn't repeat
+        if (requirement.oneTimeOnly &&
+            !string.IsNullOrEmpty(requirement.dialogueID) &&
+            GameManager.Instance.IsDialogueComplete(requirement.dialogueID))
         {
-            Debug.Log($"[Progression] requiredDialogues count: {requirement.requiredDialogues.Count}");
-            foreach (string req in requirement.requiredDialogues)
-            {
-                Debug.Log($"   Required dialogue: '{req}'   Completed? {GameManager.Instance.IsDialogueComplete(req)}");
-            }
-        }
-        else
-        {
-            Debug.Log("[Progression] requiredDialogues list is NULL!");
+            return false;
         }
 
         // Check required dialogues
@@ -87,51 +80,45 @@ public class ProgressionManager : MonoBehaviour
 
     private bool CheckRequiredDialogues(List<string> required)
     {
-        if (required == null)
-        {
-            Debug.LogWarning("[Progression] Required dialogue list is NULL!");
-            return true; // Default to true to avoid blocking everything
-        }
-
-        if (required.Count == 0)
-        {
-            Debug.Log($"[Progression] No required dialogues listed.");
-            return true;
-        }
+        if (required == null || required.Count == 0) return true;
+        if (GameManager.Instance == null) return false;
 
         foreach (string dialogueID in required)
         {
-            if (string.IsNullOrEmpty(dialogueID))
+            if (!GameManager.Instance.IsDialogueComplete(dialogueID))
             {
-                Debug.LogWarning("[Progression] Empty dialogue ID found in requirements!");
-                continue;
-            }
-
-            bool completed = GameManager.Instance != null &&
-                             GameManager.Instance.IsDialogueComplete(dialogueID);
-
-            Debug.Log($"[Progression] Requirement check: '{dialogueID}' complete? {completed}");
-
-            if (!completed)
                 return false;
+            }
         }
-
         return true;
     }
 
-
     private bool CheckRequiredChoices(List<ChoiceRequirement> required)
     {
-        if (required == null || required.Count == 0) return true;
+        if (required == null || required.Count == 0)
+        {
+            Debug.Log("[ProgressionManager] No required choices - returning TRUE");
+            return true;
+        }
+
         if (GameManager.Instance == null) return false;
+
+        Debug.Log($"[ProgressionManager] Checking {required.Count} required choices");
 
         foreach (var choiceReq in required)
         {
             int lastChoice = GameManager.Instance.GetLastChoice(choiceReq.dialogueID);
 
+            Debug.Log($"[ProgressionManager] Dialogue '{choiceReq.dialogueID}': last choice = {lastChoice}, acceptable = [{string.Join(", ", choiceReq.acceptableChoices)}]");
+
             if (!choiceReq.acceptableChoices.Contains(lastChoice))
+            {
+                Debug.Log($"[ProgressionManager] Choice {lastChoice} NOT in acceptable list - returning FALSE");
                 return false;
+            }
         }
+
+        Debug.Log("[ProgressionManager] All choice requirements met - returning TRUE");
         return true;
     }
 
