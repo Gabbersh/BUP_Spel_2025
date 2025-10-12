@@ -7,6 +7,9 @@ public class PointOfInterest : MonoBehaviour
 
     public CameraMovement targetCamera; // assign your camera here
 
+    [Header("Character Placement")]
+    public Transform characterPosition;
+
     private void OnMouseDown()
     {
         if (cameraTarget == null)

@@ -33,20 +33,23 @@ public class ProgressionManager : MonoBehaviour
         if (requirement == null || GameManager.Instance == null)
             return true;
 
-        // Check if already completed and shouldn't repeat
-        if (requirement.oneTimeOnly &&
-            !string.IsNullOrEmpty(requirement.dialogueID) &&
-            GameManager.Instance.IsDialogueComplete(requirement.dialogueID))
+        Debug.Log($"[Progression] Checking if dialogue '{requirement.dialogueID}' can play...");
+
+        if (requirement.requiredDialogues != null)
         {
-            return false;
+            Debug.Log($"[Progression] requiredDialogues count: {requirement.requiredDialogues.Count}");
+            foreach (string req in requirement.requiredDialogues)
+            {
+                Debug.Log($"   Required dialogue: '{req}'   Completed? {GameManager.Instance.IsDialogueComplete(req)}");
+            }
+        }
+        else
+        {
+            Debug.Log("[Progression] requiredDialogues list is NULL!");
         }
 
         // Check required dialogues
         if (!CheckRequiredDialogues(requirement.requiredDialogues))
-            return false;
-
-        // Check required flags
-        if (!CheckRequiredFlags(requirement.requiredFlags))
             return false;
 
         // Check required choices
@@ -84,54 +87,38 @@ public class ProgressionManager : MonoBehaviour
 
     private bool CheckRequiredDialogues(List<string> required)
     {
-        if (required == null || required.Count == 0) return true;
-        if (GameManager.Instance == null) return false;
+        if (required == null)
+        {
+            Debug.LogWarning("[Progression] Required dialogue list is NULL!");
+            return true; // Default to true to avoid blocking everything
+        }
+
+        if (required.Count == 0)
+        {
+            Debug.Log($"[Progression] No required dialogues listed.");
+            return true;
+        }
 
         foreach (string dialogueID in required)
         {
-            if (!GameManager.Instance.IsDialogueComplete(dialogueID))
+            if (string.IsNullOrEmpty(dialogueID))
             {
-                return false;
+                Debug.LogWarning("[Progression] Empty dialogue ID found in requirements!");
+                continue;
             }
-        }
-        return true;
-    }
 
-    private bool CheckRequiredFlags(List<FlagRequirement> required)
-    {
-        if (required == null || required.Count == 0) return true;
-        if (GameManager.Instance == null) return false;
+            bool completed = GameManager.Instance != null &&
+                             GameManager.Instance.IsDialogueComplete(dialogueID);
 
-        foreach (var flagReq in required)
-        {
-            if (!CheckSingleFlag(flagReq))
+            Debug.Log($"[Progression] Requirement check: '{dialogueID}' complete? {completed}");
+
+            if (!completed)
                 return false;
         }
+
         return true;
     }
 
-    private bool CheckSingleFlag(FlagRequirement requirement)
-    {
-        switch (requirement.type)
-        {
-            case FlagType.Bool:
-                bool boolValue = bool.Parse(requirement.expectedValue);
-                return GameManager.Instance.CheckFlag(requirement.flagName, boolValue);
-
-            case FlagType.Int:
-                int intValue = int.Parse(requirement.expectedValue);
-                return GameManager.Instance.CheckFlag(requirement.flagName, intValue);
-
-            case FlagType.String:
-                return GameManager.Instance.CheckFlag(requirement.flagName, requirement.expectedValue);
-
-            case FlagType.Exists:
-                return GameManager.Instance.HasFlag(requirement.flagName);
-
-            default:
-                return true;
-        }
-    }
 
     private bool CheckRequiredChoices(List<ChoiceRequirement> required)
     {
@@ -179,14 +166,6 @@ public class ProgressionManager : MonoBehaviour
             }
         }
 
-        foreach (var flagReq in requirement.requiredFlags)
-        {
-            if (!CheckSingleFlag(flagReq))
-            {
-                return $"Requires flag: {flagReq.flagName}";
-            }
-        }
-
         foreach (var choiceReq in requirement.requiredChoices)
         {
             int lastChoice = GameManager.Instance.GetLastChoice(choiceReq.dialogueID);
@@ -204,6 +183,7 @@ public class ProgressionManager : MonoBehaviour
 
 /// <summary>
 /// Defines all requirements for a dialogue to be playable
+/// SIMPLIFIED: Removed flag requirements - use only dialogue requirements and choice requirements
 /// </summary>
 [Serializable]
 public class DialogueRequirement
@@ -217,22 +197,8 @@ public class DialogueRequirement
     [Tooltip("Dialogues that must be complete first")]
     public List<string> requiredDialogues = new List<string>();
 
-    [Tooltip("Flags that must be met")]
-    public List<FlagRequirement> requiredFlags = new List<FlagRequirement>();
-
     [Tooltip("Specific choices that must have been made")]
     public List<ChoiceRequirement> requiredChoices = new List<ChoiceRequirement>();
-}
-
-/// <summary>
-/// A single flag requirement
-/// </summary>
-[Serializable]
-public class FlagRequirement
-{
-    public string flagName;
-    public FlagType type = FlagType.Bool;
-    public string expectedValue = "true";
 }
 
 /// <summary>
@@ -246,15 +212,4 @@ public class ChoiceRequirement
 
     [Tooltip("Acceptable choice indices (0-based)")]
     public List<int> acceptableChoices = new List<int>();
-}
-
-/// <summary>
-/// Types of flags for easy validation
-/// </summary>
-public enum FlagType
-{
-    Bool,
-    Int,
-    String,
-    Exists  // Just check if flag exists, ignore value
 }
