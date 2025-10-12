@@ -1,4 +1,4 @@
-using Ink.Runtime;
+﻿using Ink.Runtime;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -36,6 +36,8 @@ public class DialogueManager : MonoBehaviour
     private string currentDialogueID = "";
     private bool isTyping = false;
     private Coroutine typingCoroutine;
+    private bool waitingForClickToClose = false;
+    private bool dialogueCompletedNaturally = false;
 
     // Events (kept for backwards compatibility, but also uses GameEvents)
     public event Action<string> OnDialogueStarted;
@@ -124,6 +126,14 @@ public class DialogueManager : MonoBehaviour
     {
         if (!DialogueIsPlaying) return;
 
+        // If waiting for click to close, close now
+        if (waitingForClickToClose)
+        {
+            Debug.Log("[DialogueManager] Player clicked to close dialogue");
+            ExitDialogueMode();
+            return;
+        }
+
         if (isTyping && canSkipTyping)
         {
             SkipTyping();
@@ -144,6 +154,8 @@ public class DialogueManager : MonoBehaviour
             return;
         }
 
+        Debug.Log($"[DialogueManager] ▶ STARTING dialogue: '{dialogueID}', Ink file: {inkJSON.name}");
+
         try
         {
             currentStory = new Story(inkJSON.text);
@@ -157,13 +169,14 @@ public class DialogueManager : MonoBehaviour
 
         currentDialogueID = dialogueID;
         DialogueIsPlaying = true;
+        waitingForClickToClose = false;
+        dialogueCompletedNaturally = false;
 
         if (dialoguePanel != null)
             dialoguePanel.SetActive(true);
 
-        
-        HideChoices();                // d�ljer alla knappar
-        dialogueText.text = string.Empty; // nollst�ller text
+        HideChoices();
+        dialogueText.text = string.Empty;
 
         // Fire events
         OnDialogueStarted?.Invoke(dialogueID);
@@ -171,7 +184,6 @@ public class DialogueManager : MonoBehaviour
 
         ContinueStory();
     }
-
 
     public void ExitDialogueMode()
     {
@@ -187,6 +199,8 @@ public class DialogueManager : MonoBehaviour
             Debug.LogError($"[DialogueManager] Invalid choice index: {choiceIndex}");
             return;
         }
+
+        Debug.Log($"[DialogueManager] Choice made: {choiceIndex} in dialogue '{currentDialogueID}'");
 
         // Record choice
         if (GameManager.Instance != null && !string.IsNullOrEmpty(currentDialogueID))
@@ -209,7 +223,14 @@ public class DialogueManager : MonoBehaviour
     {
         if (!DialogueIsPlaying || isTyping) return;
 
-        HideChoices(); 
+        // If waiting to close, close now
+        if (waitingForClickToClose)
+        {
+            ExitDialogueMode();
+            return;
+        }
+
+        HideChoices();
 
         if (currentStory.canContinue)
         {
@@ -259,9 +280,13 @@ public class DialogueManager : MonoBehaviour
     {
         DisplayChoices();
 
+        // Check if dialogue is finished (no more content and no choices)
         if (!currentStory.canContinue && currentStory.currentChoices.Count == 0)
         {
-            ExitDialogueMode();
+            // Dialogue reached END naturally
+            dialogueCompletedNaturally = true;
+            waitingForClickToClose = true;
+            Debug.Log($"[DialogueManager] ✓ Dialogue '{currentDialogueID}' reached END naturally. Waiting for click to close.");
         }
     }
 
@@ -320,8 +345,32 @@ public class DialogueManager : MonoBehaviour
 
         string endedDialogueID = currentDialogueID;
 
+        // DEBUG: Check all conditions
+        Debug.Log($"[DialogueManager] === EXIT ROUTINE DEBUG ===");
+        Debug.Log($"[DialogueManager] GameManager.Instance != null? {GameManager.Instance != null}");
+        Debug.Log($"[DialogueManager] endedDialogueID is not empty? {!string.IsNullOrEmpty(endedDialogueID)} (value: '{endedDialogueID}')");
+        Debug.Log($"[DialogueManager] dialogueCompletedNaturally? {dialogueCompletedNaturally}");
+
+        // IMPORTANT: Mark dialogue as complete BEFORE firing events
+        // This ensures NPCController.OnDialogueComplete can check if it's complete
+        if (GameManager.Instance != null && !string.IsNullOrEmpty(endedDialogueID) && dialogueCompletedNaturally)
+        {
+            GameManager.Instance.MarkDialogueComplete(endedDialogueID);
+            Debug.Log($"[DialogueManager] ✓✓✓ Marked dialogue '{endedDialogueID}' as COMPLETE in GameManager");
+        }
+        else if (!dialogueCompletedNaturally)
+        {
+            Debug.Log($"[DialogueManager] ✗ Dialogue '{endedDialogueID}' was CANCELLED - NOT marked as complete");
+        }
+        else
+        {
+            Debug.LogError($"[DialogueManager] ✗✗✗ FAILED TO MARK COMPLETE - One of the conditions failed!");
+        }
+
         DialogueIsPlaying = false;
         isTyping = false;
+        waitingForClickToClose = false;
+        dialogueCompletedNaturally = false;
 
         if (dialoguePanel != null)
             dialoguePanel.SetActive(false);
@@ -334,7 +383,9 @@ public class DialogueManager : MonoBehaviour
 
         currentDialogueID = "";
 
-        // Fire events
+        Debug.Log($"[DialogueManager] ■ ENDED dialogue: '{endedDialogueID}'");
+
+        // Fire events AFTER marking complete
         OnDialogueEnded?.Invoke(endedDialogueID);
         GameEvents.TriggerDialogueEnded(endedDialogueID);
     }
