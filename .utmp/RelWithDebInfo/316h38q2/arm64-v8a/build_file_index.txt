@@ -1,0 +1,2 @@
+C:\Users\Gabriel Hamlin\Documents\GitHub\BUP_Spel_2025\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\CMakeLists.txt
+C:\Users\Gabriel Hamlin\Documents\GitHub\BUP_Spel_2025\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\GameActivity\CMakeLists.txt

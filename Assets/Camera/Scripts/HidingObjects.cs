@@ -1,9 +1,14 @@
+using System.Linq;
 using UnityEngine;
+using System.Collections.Generic;
 
 public class HidingObjects : MonoBehaviour
 {
     [Header("Objects to Toggle")]
-    [SerializeField] private GameObject[] objectsToToggle;
+    [SerializeField] private List<GameObject> objectsToToggle = new List<GameObject>();
+
+    [Header("Objects Hidden Only During Intro")]
+    [SerializeField] private List<GameObject> hideDuringIntro = new List<GameObject>();
 
     [Header("References")]
     [SerializeField] private CameraMovement cameraMovement;
@@ -16,8 +21,14 @@ public class HidingObjects : MonoBehaviour
             return;
         }
 
+
+        // Hide intro-only objects immediately
+        SetActiveState(hideDuringIntro, false);
+
         InitializeVisibility();
         SubscribeToCameraEvents();
+
+        cameraMovement.OnReachedPOI += HandleIntroEnd;
     }
 
     private void OnDestroy()
@@ -52,12 +63,12 @@ public class HidingObjects : MonoBehaviour
         }
     }
 
-    private void ShowObjects() => SetActiveState(true);
-    private void HideObjects() => SetActiveState(false);
+    private void ShowObjects() => SetActiveState(objectsToToggle, true);
+    private void HideObjects() => SetActiveState(objectsToToggle, false);
 
-    private void SetActiveState(bool active)
+    private void SetActiveState(List<GameObject> list, bool active)
     {
-        foreach (var obj in objectsToToggle)
+        foreach (var obj in list)
         {
             if (obj == null) continue;
 
@@ -67,5 +78,10 @@ public class HidingObjects : MonoBehaviour
 
             obj.SetActive(active);
         }
+    }
+
+    private void HandleIntroEnd()
+    {
+        SetActiveState(hideDuringIntro, true);
     }
 }

@@ -5,16 +5,17 @@ public class QuestHintManager : MonoBehaviour
 {
     [Header("References")]
     public CameraMovement cameraMovement;
-    public GameObject[] highlightObjects;    // visual hints on rail
-    public GameObject[] interactableObjects; // interactibles that activate off-rail/at POI
+    public GameObject[] highlightObjects;
+    public GameObject[] interactableObjects;
 
     [Header("Debug")]
     public KeyCode toggleQuestKey = KeyCode.B;
     public bool questActive = false;
 
+    private bool questEnding = false;
+
     private void Awake()
     {
-        // Ensure everything starts disabled
         SetActiveAll(highlightObjects, false);
         SetActiveAll(interactableObjects, false);
     }
@@ -34,7 +35,6 @@ public class QuestHintManager : MonoBehaviour
         if (Input.GetKeyDown(toggleQuestKey))
         {
             questActive = !questActive;
-            Debug.Log($"Quest {(questActive ? "Activated" : "Deactivated")}");
             UpdateQuestState();
         }
     }
@@ -43,11 +43,17 @@ public class QuestHintManager : MonoBehaviour
     {
         if (!questActive)
         {
+            questEnding = true; // prevent flicker while deactivating
             SetActiveAll(highlightObjects, false);
             SetActiveAll(interactableObjects, false);
+            StartCoroutine(ResetQuestEndingFlag());
             return;
         }
 
+        // Subscribe to interactables once at the start of the quest
+        SubscribeToInteractables();
+
+        // Set quest mode based on camera
         if (cameraMovement != null && cameraMovement.IsIdleOnRail)
             SetQuestMode(onRail: true);
         else
@@ -57,10 +63,10 @@ public class QuestHintManager : MonoBehaviour
     private void SetQuestMode(bool onRail)
     {
         SetActiveAll(highlightObjects, onRail);
-        SetActiveAll(interactableObjects, !onRail);
 
-        if (!onRail)
-            SubscribeToInteractables();
+        // Only activate interactables if quest is active and not ending
+        if (!questEnding)
+            SetActiveAll(interactableObjects, !onRail);
     }
 
     // --- Camera Event Handlers ---
@@ -86,6 +92,7 @@ public class QuestHintManager : MonoBehaviour
             var interactable = obj.GetComponent<Interactable>();
             if (interactable != null)
             {
+                // Ensure only one subscription
                 interactable.OnPickedUp -= HandleInteractiblePickedUp;
                 interactable.OnPickedUp += HandleInteractiblePickedUp;
             }
@@ -94,28 +101,38 @@ public class QuestHintManager : MonoBehaviour
 
     private void HandleInteractiblePickedUp(Interactable interactable)
     {
-        Debug.Log($"Picked up {interactable.name}, ending quest...");
-        StartCoroutine(EndQuestAfterDelay(0.1f));
+        StartCoroutine(EndQuestAfterDelay(interactable.DeactivateDelay + 0.1f, interactable));
     }
 
-    private IEnumerator EndQuestAfterDelay(float delay)
+    private IEnumerator EndQuestAfterDelay(float delay, Interactable pickedUp)
     {
         yield return new WaitForSeconds(delay);
-        EndQuest();
+        EndQuest(pickedUp);
     }
 
-    private void EndQuest()
+    private void EndQuest(Interactable pickedUp)
     {
         questActive = false;
+        questEnding = true;
+
+        // Deactivate highlights and all interactables
         SetActiveAll(highlightObjects, false);
         SetActiveAll(interactableObjects, false);
-        Debug.Log("Quest ended.");
+
+        // Reset ending flag next frame
+        StartCoroutine(ResetQuestEndingFlag());
     }
 
-    // --- Utility ---
+    private IEnumerator ResetQuestEndingFlag()
+    {
+        yield return null; // wait one frame
+        questEnding = false;
+    }
+
     private void SetActiveAll(GameObject[] objects, bool state)
     {
         foreach (var obj in objects)
-            if (obj != null) obj.SetActive(state);
+            if (obj != null)
+                obj.SetActive(state);
     }
 }

@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using UnityEngine;
 
 public class CameraMovement : MonoBehaviour
 {
@@ -7,11 +8,11 @@ public class CameraMovement : MonoBehaviour
     public Transform railEnd;
 
     [Header("Movement Settings")]
-    public float moveSpeed = 0.5f; // drag/swipe sensitivity
+    public float buttonSpeed = 1f; // constant speed while holding button
     public float fixedY = 5f;
 
     [Header("Momentum Settings")]
-    public float deceleration = 5f;
+    public float deceleration = 3f; // velocity decay after release
 
     [Header("POI Override")]
     public float overrideSpeed = 1f;
@@ -20,100 +21,75 @@ public class CameraMovement : MonoBehaviour
     private Vector3 overrideTargetPos;
     private Quaternion overrideTargetRot;
 
-    // Events for UI/other scripts
+    // Intro Settings
+    [Header("Intro Settings")]
+    public bool playIntroAtStart = true;
+    public Transform introStartPoint;
+    public Transform introTargetPoint; 
+    public float introDuration = 3f;
+    public AnimationCurve introCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+
+    private bool introPlaying = false; 
+
+    // Events
     public event System.Action OnLeftPOI;
     public event System.Action OnReturnedToRail;
     public event System.Action OnReachedPOI;
     public event System.Action OnLeftRail;
 
-    [Header("Transition Control")]
     private bool isTransitioning = false;
-
     public bool HasReachedPOI { get; private set; } = false;
-    public bool IsIdleOnRail =>
-    !isTransitioning && !overrideActive && !returningToRail &&
-    !dragging && Mathf.Abs(velocity) < 0.001f;
 
-    [Header("Rail Return")]
+    public bool IsIdleOnRail => !isTransitioning && !overrideActive && !returningToRail && Mathf.Abs(velocity) < 0.001f;
+
     private bool returningToRail = false;
     private Vector3 returnTargetPos;
     private Quaternion returnTargetRot;
 
     private float t = 0.5f; // position along rail [0,1]
-    private float velocity = 0f;
-    private bool dragging = false;
-    private Vector2 lastInputPos;
+    private float velocity = 0f; // current velocity along rail
+    private float externalInput = 0f; // -1 = left, 1 = right
+
     private Quaternion railOriginalRot;
 
     void Start()
     {
         railOriginalRot = transform.rotation;
+
+        if (playIntroAtStart && introStartPoint != null && introTargetPoint != null)
+        {
+            transform.position = introStartPoint.position;
+            transform.rotation = introStartPoint.rotation;
+            StartCoroutine(PlayIntroSequence());
+        }
     }
 
     void Update()
     {
-        if (railStart == null || railEnd == null) return;
+        if (railStart == null || railEnd == null || introPlaying) return;
 
-        if (DialogueManager.Instance?.DialogueIsPlaying == true)
-        {
-            dragging = false;
-            velocity = 0f;
-            return;
-        }
-
-        Vector2 inputDelta = Vector2.zero;
-
-        // ----- Mouse Input (PC) -----
-        if (Input.GetMouseButtonDown(0)) StartDragging(Input.mousePosition);
-        if (Input.GetMouseButton(0))
-        {
-            inputDelta = (Vector2)Input.mousePosition - lastInputPos;
-            lastInputPos = Input.mousePosition;
-            dragging = true;
-        }
-        if (Input.GetMouseButtonUp(0)) dragging = false;
-
-        // ----- Touch Input (Mobile) -----
-        if (Input.touchCount == 1)
-        {
-            Touch touch = Input.GetTouch(0);
-            switch (touch.phase)
-            {
-                case TouchPhase.Began:
-                    StartDragging(touch.position);
-                    break;
-                case TouchPhase.Moved:
-                    inputDelta = touch.deltaPosition;
-                    dragging = true;
-                    break;
-                case TouchPhase.Ended:
-                case TouchPhase.Canceled:
-                    dragging = false;
-                    break;
-            }
-        }
-
-        if (!overrideActive && !returningToRail)
-            HandleRailMovement(inputDelta);
-
+        HandleRailMovement();
         ApplyCameraPosition();
     }
 
-    private void HandleRailMovement(Vector2 inputDelta)
+    private void HandleRailMovement()
     {
-        if (dragging)
+        if (!overrideActive && !returningToRail)
         {
-            float deltaT = -inputDelta.x / Screen.width * moveSpeed;
-            t += deltaT;
-            velocity = deltaT / Time.deltaTime;
-        }
-        else if (Mathf.Abs(velocity) > 0.001f)
-        {
-            t += velocity * Time.deltaTime;
-            velocity = Mathf.MoveTowards(velocity, 0f, deceleration * Time.deltaTime);
-        }
+            if (Mathf.Abs(externalInput) > 0.001f)
+            {
+                // Constant velocity while button is held
+                velocity = externalInput * buttonSpeed;
+            }
+            else
+            {
+                // Decelerate velocity after button release
+                velocity = Mathf.MoveTowards(velocity, 0f, deceleration * Time.deltaTime);
+            }
 
-        t = Mathf.Clamp01(t);
+            t += velocity * Time.deltaTime;
+            t = Mathf.Clamp01(t);
+        }
     }
 
     private void ApplyCameraPosition()
@@ -122,6 +98,14 @@ public class CameraMovement : MonoBehaviour
             MoveTowardsTarget();
         else
             MoveAlongRail();
+    }
+
+    private void MoveAlongRail()
+    {
+        Vector3 railPos = Vector3.Lerp(railStart.position, railEnd.position, t);
+        railPos.y = fixedY;
+        transform.position = railPos;
+        transform.rotation = railOriginalRot;
     }
 
     private void MoveTowardsTarget()
@@ -141,32 +125,17 @@ public class CameraMovement : MonoBehaviour
             {
                 velocity = 0f;
                 HasReachedPOI = true;
-                OnReachedPOI?.Invoke();  // arrived at POI
+                OnReachedPOI?.Invoke();
             }
             else
             {
                 returningToRail = false;
                 HasReachedPOI = false;
-                OnReturnedToRail?.Invoke(); // back on rail
+                OnReturnedToRail?.Invoke();
             }
 
             isTransitioning = false;
         }
-    }
-
-    private void MoveAlongRail()
-    {
-        Vector3 railPos = Vector3.Lerp(railStart.position, railEnd.position, t);
-        railPos.y = fixedY;
-        transform.position = railPos;
-        transform.rotation = railOriginalRot;
-    }
-
-    private void StartDragging(Vector2 inputPos)
-    {
-        lastInputPos = inputPos;
-        dragging = true;
-        velocity = 0f;
     }
 
     // ----- POI Interaction -----
@@ -191,17 +160,87 @@ public class CameraMovement : MonoBehaviour
     {
         if (isTransitioning) return;
 
+        Vector3 railPos = Vector3.Lerp(railStart.position, railEnd.position, t);
+        railPos.y = fixedY;
+        returnTargetPos = railPos;
+        returnTargetRot = railOriginalRot;
+
         overrideActive = false;
         returningToRail = true;
         isTransitioning = true;
         HasReachedPOI = false;
 
-        OnLeftPOI?.Invoke(); // leaving POI
+        OnLeftPOI?.Invoke();
     }
 
-    // ----- PUBLIC METHODS FOR OTHER SCRIPTS -----
-    public bool IsOverridingToPOI(Vector3 targetPos)
+    // ----- External Input for buttons -----
+    public void SetExternalInput(float input)
     {
-        return overrideActive && overrideTargetPos == targetPos;
+        if (!introPlaying)
+            externalInput = input;
+        else
+            externalInput = 0f; // Disable input during intro
+    }
+
+    public void AddDeltaT(float delta)
+    {
+        t += delta;
+        velocity = delta / Time.deltaTime;
+        t = Mathf.Clamp01(t);
+    }
+
+    // Intro coroutine
+    private IEnumerator PlayIntroSequence()
+    {
+        introPlaying = true;
+        OnLeftRail?.Invoke();
+        float time = 0f;
+
+        Vector3 startPos = introStartPoint.position;
+        Quaternion startRot = introStartPoint.rotation;
+        Vector3 endPos = introTargetPoint.position;
+        Quaternion endRot = introTargetPoint.rotation;
+
+        while (time < introDuration)
+        {
+            float normalizedTime = time / introDuration;
+            float curveValue = introCurve.Evaluate(normalizedTime);
+
+            transform.position = Vector3.Lerp(startPos, endPos, curveValue);
+            transform.rotation = Quaternion.Slerp(startRot, endRot, curveValue);
+
+            time += Time.deltaTime;
+            yield return null;
+        }
+
+        transform.position = endPos;
+        transform.rotation = endRot;
+
+        introPlaying = false;
+
+        overrideActive = true;
+        overrideTargetPos = endPos;
+        overrideTargetRot = endRot;
+        HasReachedPOI = true;
+        OnReachedPOI?.Invoke();
+
+        t = GetClosestTOnRail(endPos);
+        returnTargetPos = Vector3.Lerp(railStart.position, railEnd.position, t);
+        returnTargetPos.y = fixedY;
+        returnTargetRot = railOriginalRot;
+    }
+
+    private float GetClosestTOnRail(Vector3 position)
+    {
+        if (railStart == null || railEnd == null)
+            return 0.5f;
+
+        Vector3 a = railStart.position;
+        Vector3 b = railEnd.position;
+        Vector3 ab = b - a;
+        Vector3 ap = position - a;
+
+        float tProjected = Vector3.Dot(ap, ab) / ab.sqrMagnitude;
+        return Mathf.Clamp01(tProjected);
     }
 }
