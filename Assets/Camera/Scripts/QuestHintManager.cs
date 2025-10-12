@@ -22,12 +22,11 @@ public class QuestHintManager : MonoBehaviour
 
     private void Start()
     {
-        if (cameraMovement != null)
-        {
-            cameraMovement.OnLeftRail += OnOffRail;
-            cameraMovement.OnReachedPOI += OnOffRail;
-            cameraMovement.OnReturnedToRail += OnOnRail;
-        }
+        if (cameraMovement == null) return;
+
+        cameraMovement.OnLeftRail += () => UpdateQuestMode(false);
+        cameraMovement.OnReachedPOI += () => UpdateQuestMode(false);
+        cameraMovement.OnReturnedToRail += () => UpdateQuestMode(true);
     }
 
     private void Update()
@@ -35,104 +34,72 @@ public class QuestHintManager : MonoBehaviour
         if (Input.GetKeyDown(toggleQuestKey))
         {
             questActive = !questActive;
-            UpdateQuestState();
+            HandleQuestToggle();
         }
     }
 
-    private void UpdateQuestState()
+    private void HandleQuestToggle()
     {
+        StopAllCoroutines();
+
         if (!questActive)
         {
-            questEnding = true; // prevent flicker while deactivating
-            SetActiveAll(highlightObjects, false);
-            SetActiveAll(interactableObjects, false);
-            StartCoroutine(ResetQuestEndingFlag());
+            EndQuestInstant();
             return;
         }
 
-        // Subscribe to interactables once at the start of the quest
         SubscribeToInteractables();
 
-        // Set quest mode based on camera
-        if (cameraMovement != null && cameraMovement.IsIdleOnRail)
-            SetQuestMode(onRail: true);
-        else
-            SetQuestMode(onRail: false);
+        bool onRail = cameraMovement == null || cameraMovement.IsIdleOnRail;
+        UpdateQuestMode(onRail);
     }
 
-    private void SetQuestMode(bool onRail)
+    private void UpdateQuestMode(bool onRail)
     {
+        if (!questActive || questEnding) return;
+
         SetActiveAll(highlightObjects, onRail);
-
-        // Only activate interactables if quest is active and not ending
-        if (!questEnding)
-            SetActiveAll(interactableObjects, !onRail);
+        SetActiveAll(interactableObjects, !onRail);
     }
 
-    // --- Camera Event Handlers ---
-    private void OnOffRail()
-    {
-        if (!questActive) return;
-        SetQuestMode(onRail: false);
-    }
-
-    private void OnOnRail()
-    {
-        if (!questActive) return;
-        SetQuestMode(onRail: true);
-    }
-
-    // --- Interactable subscription ---
     private void SubscribeToInteractables()
     {
         foreach (var obj in interactableObjects)
         {
-            if (obj == null) continue;
+            var interactable = obj?.GetComponent<Interactable>();
+            if (interactable == null) continue;
 
-            var interactable = obj.GetComponent<Interactable>();
-            if (interactable != null)
-            {
-                // Ensure only one subscription
-                interactable.OnPickedUp -= HandleInteractiblePickedUp;
-                interactable.OnPickedUp += HandleInteractiblePickedUp;
-            }
+            interactable.OnPickedUp -= HandlePickedUp;
+            interactable.OnPickedUp += HandlePickedUp;
         }
     }
 
-    private void HandleInteractiblePickedUp(Interactable interactable)
+    private void HandlePickedUp(Interactable interactable)
     {
-        StartCoroutine(EndQuestAfterDelay(interactable.DeactivateDelay + 0.1f, interactable));
+        if (questEnding) return;
+
+        questEnding = true;
+        StartCoroutine(EndQuestAfterDelay(1.7f)); // consistent delay 
     }
 
-    private IEnumerator EndQuestAfterDelay(float delay, Interactable pickedUp)
+    private IEnumerator EndQuestAfterDelay(float delay)
     {
         yield return new WaitForSeconds(delay);
-        EndQuest(pickedUp);
+        EndQuestInstant();
     }
 
-    private void EndQuest(Interactable pickedUp)
+    private void EndQuestInstant()
     {
         questActive = false;
-        questEnding = true;
+        questEnding = false;
 
-        // Deactivate highlights and all interactables
         SetActiveAll(highlightObjects, false);
         SetActiveAll(interactableObjects, false);
-
-        // Reset ending flag next frame
-        StartCoroutine(ResetQuestEndingFlag());
-    }
-
-    private IEnumerator ResetQuestEndingFlag()
-    {
-        yield return null; // wait one frame
-        questEnding = false;
     }
 
     private void SetActiveAll(GameObject[] objects, bool state)
     {
         foreach (var obj in objects)
-            if (obj != null)
-                obj.SetActive(state);
+            if (obj) obj.SetActive(state);
     }
 }
