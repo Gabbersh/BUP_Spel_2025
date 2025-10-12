@@ -172,7 +172,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Interactable
   pickupTarget: {fileID: 0}
   moveSpeed: 5
-  deactivateDelay: 1.5
+  deactivateDelay: 1.7
 --- !u!65 &3096737658849875434
 BoxCollider:
   m_ObjectHideFlags: 0
