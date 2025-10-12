@@ -43,16 +43,14 @@ public class Interactable : MonoBehaviour
 
     public void OnInteract()
     {
-        if (!firstClickDone)
-        {
-            pickedUp = true;
-            finished = false;
-            firstClickDone = true;
+        if (pickedUp || finished) return; // prevent double pickup
 
-            var highlight = GetComponentInChildren<HighlightDeactivator>();
-            if (highlight != null)
-                highlight.DeactivateHighlight();
-        }
+        pickedUp = true;
+        finished = false;
+
+        var highlight = GetComponentInChildren<HighlightDeactivator>();
+        if (highlight != null)
+            highlight.DeactivateHighlight();
     }
 
     private IEnumerator DeactivateAfterDelay()
