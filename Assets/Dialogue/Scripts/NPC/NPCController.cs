@@ -242,7 +242,7 @@ public class NPCController : MonoBehaviour
         if (DialogueManager.Instance != null)
         {
             DialogueManager.Instance.OnDialogueEnded += OnDialogueComplete;
-            DialogueManager.Instance.EnterDialogueMode(dialogue.inkJSON, dialogue.requirement?.dialogueID);
+            DialogueManager.Instance.EnterDialogueMode(dialogue.inkJSON, dialogue.requirement?.dialogueID, npcName);
         }
 
         GameEvents.TriggerNPCInteracted(npcID);

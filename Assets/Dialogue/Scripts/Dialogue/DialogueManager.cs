@@ -146,7 +146,7 @@ public class DialogueManager : MonoBehaviour
 
     // ==================== PUBLIC API ====================
 
-    public void EnterDialogueMode(TextAsset inkJSON, string dialogueID = "")
+    public void EnterDialogueMode(TextAsset inkJSON, string dialogueID = "", string npcName = "")
     {
         if (inkJSON == null)
         {
@@ -154,7 +154,7 @@ public class DialogueManager : MonoBehaviour
             return;
         }
 
-        Debug.Log($"[DialogueManager] ▶ STARTING dialogue: '{dialogueID}', Ink file: {inkJSON.name}");
+        Debug.Log($"[DialogueManager] ▶ STARTING dialogue: '{dialogueID}', Ink file: {inkJSON.name}, NPC Name: '{npcName}'");
 
         try
         {
@@ -177,6 +177,21 @@ public class DialogueManager : MonoBehaviour
 
         HideChoices();
         dialogueText.text = string.Empty;
+
+        // Set NPC name if provided, otherwise clear it
+        if (nameText != null)
+        {
+            if (!string.IsNullOrEmpty(npcName))
+            {
+                nameText.text = npcName;
+                Debug.Log($"[DialogueManager] Set name text to: '{npcName}'");
+            }
+            else
+            {
+                nameText.text = "";
+                Debug.Log("[DialogueManager] Cleared name text (no name provided)");
+            }
+        }
 
         // Fire events
         OnDialogueStarted?.Invoke(dialogueID);
