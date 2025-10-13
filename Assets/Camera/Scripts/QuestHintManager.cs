@@ -102,4 +102,18 @@ public class QuestHintManager : MonoBehaviour
         foreach (var obj in objects)
             if (obj) obj.SetActive(state);
     }
+
+    public void ActivateQuestMode()
+    {
+        if (questActive) return; // Already active
+        questActive = true;
+        HandleQuestToggle(); // Reuse the existing logic
+    }
+
+    public void DeactivateQuestMode()
+    {
+        if (!questActive) return; // Already inactive
+        questActive = false;
+        HandleQuestToggle(); // Reuse the existing logic
+    }
 }
