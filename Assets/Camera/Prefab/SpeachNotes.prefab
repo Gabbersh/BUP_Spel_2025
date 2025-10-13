@@ -172,7 +172,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Interactable
   pickupTarget: {fileID: 0}
   moveSpeed: 5
-  deactivateDelay: 1.7
 --- !u!65 &3096737658849875434
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -242,6 +241,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1923199027960091802, guid: 409a59359549aef418ba80e0b2e0056a, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 4cfbd794053ca9941a91c39955b24807, type: 2}
+    - target: {fileID: 1923199027960091802, guid: 409a59359549aef418ba80e0b2e0056a, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 4cfbd794053ca9941a91c39955b24807, type: 2}
     - target: {fileID: 3689213640607575970, guid: 409a59359549aef418ba80e0b2e0056a, type: 3}
       propertyPath: m_Name
       value: Speach
