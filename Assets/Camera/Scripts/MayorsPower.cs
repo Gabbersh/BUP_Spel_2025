@@ -37,7 +37,7 @@ public class MayorsPower : MonoBehaviour
     [SerializeField] private int max = 100;
 
     [Header("Animation Speed")]
-    [SerializeField, Range(0, 0.5f)] private float animationTime = 0.5f;
+    [SerializeField, Range(0, 1f)] private float animationTime = 1f;
     private Coroutine _fillRoutine;
 
     [Header("Gradient Settings")]
