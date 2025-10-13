@@ -13,6 +13,9 @@ public class QuestManager : MonoBehaviour
     [Header("Quests")]
     [SerializeField] private List<Quest> quests = new List<Quest>();
 
+    [Header("External References")]
+    [SerializeField] private QuestHintManager questHintManager;
+
     [Header("Debug")]
     [SerializeField] private bool showDebugInfo = true;
 
@@ -56,10 +59,10 @@ public class QuestManager : MonoBehaviour
                 }
 
                 // Initially hide/disable objectives
-                if (objective.targetObject != null)
-                {
-                    objective.targetObject.SetActive(false);
-                }
+                //if (objective.targetObject != null)
+                //{
+                //    objective.targetObject.SetActive(false);
+                //}
             }
         }
     }
@@ -150,7 +153,7 @@ public class QuestManager : MonoBehaviour
         // Set quest as active
         GameManager.Instance?.SetFlag($"quest_{quest.questID}_active", true);
 
-        // Activate all objective objects
+        // Activate all objective objects (for logic, QuestHintManager handles visibility)
         foreach (var objective in quest.objectives)
         {
             if (objective.targetObject != null)
@@ -164,6 +167,13 @@ public class QuestManager : MonoBehaviour
         if (!string.IsNullOrEmpty(quest.startFlag))
         {
             GameManager.Instance?.SetFlag(quest.startFlag, true);
+        }
+
+        // ===== Activate quest mode in QuestHintManager =====
+        if (questHintManager != null)
+        {
+            questHintManager.ActivateQuestMode();
+            DebugLog($"Activated QuestHintManager for quest '{quest.questID}'");
         }
 
         DebugLog($"Quest '{quest.questID}' started successfully!");
