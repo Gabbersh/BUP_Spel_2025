@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -18,13 +18,26 @@ public class MayorsPower : MonoBehaviour
         public int powerChange;
     }
 
+    [System.Serializable]
+    public class DialoguePowerEffect
+    {
+        [Tooltip("Dialogue ID to watch for completion")]
+        public string dialogueID;
+
+        [Tooltip("Power change when this dialogue completes (positive or negative)")]
+        public int powerChange;
+
+        [Tooltip("Optional: Description of what this represents")]
+        public string description;
+    }
+
     [Header("Core Settings")]
     [SerializeField] private Image bar;
     [SerializeField] private int current = 100;
     [SerializeField] private int max = 100;
 
     [Header("Animation Speed")]
-    [SerializeField, Range(0, 0.5f)] private float animationTime = 0.5f;
+    [SerializeField, Range(0, 1f)] private float animationTime = 1f;
     private Coroutine _fillRoutine;
 
     [Header("Gradient Settings")]
@@ -34,19 +47,30 @@ public class MayorsPower : MonoBehaviour
     [Header("Choice Integration")]
     [SerializeField] private List<ChoicePowerEffect> choicePowerEffects = new List<ChoicePowerEffect>();
 
+    [Header("Dialogue Completion Integration")]
+    [SerializeField] private List<DialoguePowerEffect> dialoguePowerEffects = new List<DialoguePowerEffect>();
+
     private void Start()
     {
+        // Load saved power or use default
+        if (GameManager.Instance != null)
+        {
+            current = GameManager.Instance.GetFlag("mayor_power", current);
+        }
+
         UpdateBar();
         UseGradient();
 
-        // Subscribe to choice events from GameEvents
+        // Subscribe to game events
         GameEvents.OnChoiceMade += OnChoiceMade;
+        GameEvents.OnDialogueEnded += OnDialogueEnded;
     }
 
     private void OnDestroy()
     {
         // Unsubscribe to prevent memory leaks
         GameEvents.OnChoiceMade -= OnChoiceMade;
+        GameEvents.OnDialogueEnded -= OnDialogueEnded;
     }
 
     private void Update()
@@ -78,6 +102,34 @@ public class MayorsPower : MonoBehaviour
         }
     }
 
+    // ==================== DIALOGUE COMPLETION HANDLING ====================
+
+    private void OnDialogueEnded(string dialogueID)
+    {
+        // Only trigger if dialogue was actually completed (not cancelled)
+        if (GameManager.Instance != null && !GameManager.Instance.IsDialogueComplete(dialogueID))
+        {
+            return; // Dialogue was cancelled, don't apply power change
+        }
+
+        // Find if this dialogue completion affects power
+        foreach (var effect in dialoguePowerEffects)
+        {
+            if (effect.dialogueID == dialogueID)
+            {
+                ChangeBarByAmount(effect.powerChange);
+                Debug.Log($"[MayorsPower] Dialogue completed '{dialogueID}': {effect.powerChange:+0;-0} power change");
+
+                if (!string.IsNullOrEmpty(effect.description))
+                {
+                    Debug.Log($"[MayorsPower] → {effect.description}");
+                }
+
+                break; // Only apply first matching effect
+            }
+        }
+    }
+
     // ==================== POWER BAR LOGIC ====================
 
     public bool ChangeBarByAmount(int amount)
@@ -89,6 +141,12 @@ public class MayorsPower : MonoBehaviour
 
         current += amount;
         current = Mathf.Clamp(current, 0, max);
+
+        // Save power to GameManager
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SetFlag("mayor_power", current);
+        }
 
         UpdateBar();
 
@@ -162,5 +220,22 @@ public class MayorsPower : MonoBehaviour
     public float GetPowerPercentage()
     {
         return (float)current / max;
+    }
+
+    public void SetPower(int value)
+    {
+        current = Mathf.Clamp(value, 0, max);
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SetFlag("mayor_power", current);
+        }
+
+        UpdateBar();
+    }
+
+    public void ResetPower()
+    {
+        SetPower(max);
     }
 }
