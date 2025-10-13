@@ -2,10 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Core game manager handling save/load and game state.
-/// Keeps track of flags, choices, and completed dialogues.
-/// </summary>
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
@@ -14,10 +10,8 @@ public class GameManager : MonoBehaviour
     [SerializeField] private bool autoSave = true;
     [SerializeField] private string saveFileName = "game_save";
 
-    // Game state data
     private GameSaveData saveData;
 
-    // Events
     public event Action OnGameDataLoaded;
     public event Action OnGameDataSaved;
 
@@ -55,7 +49,6 @@ public class GameManager : MonoBehaviour
             PlayerPrefs.SetString(saveFileName, json);
             PlayerPrefs.Save();
 
-            Debug.Log("[GameManager] Game saved successfully");
             OnGameDataSaved?.Invoke();
         }
         catch (Exception e)
@@ -72,7 +65,6 @@ public class GameManager : MonoBehaviour
             {
                 string json = PlayerPrefs.GetString(saveFileName);
                 saveData = JsonUtility.FromJson<GameSaveData>(json);
-                Debug.Log("[GameManager] Game loaded successfully");
             }
             catch (Exception e)
             {
@@ -82,7 +74,6 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            Debug.Log("[GameManager] No save file found, creating new game data");
             saveData = new GameSaveData();
         }
 
@@ -93,7 +84,6 @@ public class GameManager : MonoBehaviour
     {
         saveData = new GameSaveData();
         SaveGame();
-        Debug.Log("[GameManager] Game reset");
     }
 
     // ==================== DIALOGUE TRACKING ====================
@@ -200,9 +190,6 @@ public class GameManager : MonoBehaviour
     }
 }
 
-/// <summary>
-/// Data structure for saving game state
-/// </summary>
 [Serializable]
 public class GameSaveData
 {

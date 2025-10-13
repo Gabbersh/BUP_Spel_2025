@@ -12,4 +12,5 @@ Tänk om något händer och jag inte kan hantera det?
     Du har rätt, om vi gör det tillsammans så kommer det nog att kännas lättare.
     Och någon måste våga utmana borgmästarens regler.
     Vi går dit!
+    #success
     -> END

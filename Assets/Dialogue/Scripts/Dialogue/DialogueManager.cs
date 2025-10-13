@@ -6,10 +6,6 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Simplified DialogueManager with better integration with new systems.
-/// Cleaner code, better event handling, and easier to maintain.
-/// </summary>
 public class DialogueManager : MonoBehaviour
 {
     public static DialogueManager Instance { get; private set; }
@@ -17,7 +13,7 @@ public class DialogueManager : MonoBehaviour
     [Header("Dialogue UI")]
     [SerializeField] private GameObject dialoguePanel;
     [SerializeField] private TextMeshProUGUI dialogueText;
-    [SerializeField] private TextMeshProUGUI nameText; // Optional: for character names
+    [SerializeField] private TextMeshProUGUI nameText;
     [SerializeField] private GameObject continueButton;
 
     [Header("Typewriter Effect")]
@@ -39,11 +35,9 @@ public class DialogueManager : MonoBehaviour
     private bool waitingForClickToClose = false;
     private bool dialogueCompletedNaturally = false;
 
-    // Events (kept for backwards compatibility, but also uses GameEvents)
     public event Action<string> OnDialogueStarted;
     public event Action<string> OnDialogueEnded;
 
-    // Properties
     public bool DialogueIsPlaying { get; private set; }
 
     private void Awake()
@@ -77,14 +71,12 @@ public class DialogueManager : MonoBehaviour
         if (dialoguePanel != null)
             dialoguePanel.SetActive(false);
 
-        // Setup choice buttons
         choiceTexts = new TextMeshProUGUI[choiceButtons.Length];
         for (int i = 0; i < choiceButtons.Length; i++)
         {
             choiceTexts[i] = choiceButtons[i].GetComponentInChildren<TextMeshProUGUI>();
 
-            // Add click listeners
-            int index = i; // Capture for closure
+            int index = i;
             Button btn = choiceButtons[i].GetComponent<Button>();
             if (btn != null)
             {
@@ -92,7 +84,6 @@ public class DialogueManager : MonoBehaviour
             }
         }
 
-        // Setup continue button
         if (continueButton != null)
         {
             Button btn = continueButton.GetComponent<Button>();
@@ -126,10 +117,8 @@ public class DialogueManager : MonoBehaviour
     {
         if (!DialogueIsPlaying) return;
 
-        // If waiting for click to close, close now
         if (waitingForClickToClose)
         {
-            Debug.Log("[DialogueManager] Player clicked to close dialogue");
             ExitDialogueMode();
             return;
         }
@@ -154,8 +143,6 @@ public class DialogueManager : MonoBehaviour
             return;
         }
 
-        Debug.Log($"[DialogueManager] ▶ STARTING dialogue: '{dialogueID}', Ink file: {inkJSON.name}, NPC Name: '{npcName}'");
-
         try
         {
             currentStory = new Story(inkJSON.text);
@@ -178,22 +165,11 @@ public class DialogueManager : MonoBehaviour
         HideChoices();
         dialogueText.text = string.Empty;
 
-        // Set NPC name if provided, otherwise clear it
         if (nameText != null)
         {
-            if (!string.IsNullOrEmpty(npcName))
-            {
-                nameText.text = npcName;
-                Debug.Log($"[DialogueManager] Set name text to: '{npcName}'");
-            }
-            else
-            {
-                nameText.text = "";
-                Debug.Log("[DialogueManager] Cleared name text (no name provided)");
-            }
+            nameText.text = !string.IsNullOrEmpty(npcName) ? npcName : "";
         }
 
-        // Fire events
         OnDialogueStarted?.Invoke(dialogueID);
         GameEvents.TriggerDialogueStarted(dialogueID);
 
@@ -215,15 +191,11 @@ public class DialogueManager : MonoBehaviour
             return;
         }
 
-        Debug.Log($"[DialogueManager] Choice made: {choiceIndex} in dialogue '{currentDialogueID}'");
-
-        // Record choice
         if (GameManager.Instance != null && !string.IsNullOrEmpty(currentDialogueID))
         {
             GameManager.Instance.RecordChoice(currentDialogueID, choiceIndex);
         }
 
-        // Fire events
         GameEvents.TriggerChoiceMade(currentDialogueID, choiceIndex);
 
         currentStory.ChooseChoiceIndex(choiceIndex);
@@ -238,7 +210,6 @@ public class DialogueManager : MonoBehaviour
     {
         if (!DialogueIsPlaying || isTyping) return;
 
-        // If waiting to close, close now
         if (waitingForClickToClose)
         {
             ExitDialogueMode();
@@ -268,7 +239,6 @@ public class DialogueManager : MonoBehaviour
         isTyping = true;
         dialogueText.text = "";
 
-        // Check for character name tags (optional feature)
         string processedText = ProcessTags(text);
 
         foreach (char letter in processedText)
@@ -295,13 +265,34 @@ public class DialogueManager : MonoBehaviour
     {
         DisplayChoices();
 
-        // Check if dialogue is finished (no more content and no choices)
         if (!currentStory.canContinue && currentStory.currentChoices.Count == 0)
         {
-            // Dialogue reached END naturally
-            dialogueCompletedNaturally = true;
+            // Check if the dialogue has a "success" tag to mark it as completed
+            bool hasSuccessTag = false;
+            if (currentStory.currentTags != null)
+            {
+                foreach (string tag in currentStory.currentTags)
+                {
+                    if (tag.Trim().ToLower() == "success")
+                    {
+                        hasSuccessTag = true;
+                        break;
+                    }
+                }
+            }
+
+            // Only mark as "completed naturally" if it has the success tag
+            dialogueCompletedNaturally = hasSuccessTag;
             waitingForClickToClose = true;
-            Debug.Log($"[DialogueManager] ✓ Dialogue '{currentDialogueID}' reached END naturally. Waiting for click to close.");
+
+            if (hasSuccessTag)
+            {
+                Debug.Log($"[DialogueManager] Dialogue '{currentDialogueID}' has SUCCESS tag - will be marked complete");
+            }
+            else
+            {
+                Debug.Log($"[DialogueManager] Dialogue '{currentDialogueID}' has NO success tag - will NOT be marked complete");
+            }
         }
     }
 
@@ -313,7 +304,6 @@ public class DialogueManager : MonoBehaviour
 
         List<Choice> currentChoices = currentStory.currentChoices;
 
-        // Show choices that exist, hide the rest
         int index = 0;
         foreach (Choice choice in currentChoices)
         {
@@ -328,13 +318,11 @@ public class DialogueManager : MonoBehaviour
             index++;
         }
 
-        // Hide unused choice buttons
         for (int i = index; i < choiceButtons.Length; i++)
         {
             choiceButtons[i].SetActive(false);
         }
 
-        // Show continue button only if no choices available and story can continue
         if (continueButton != null)
         {
             continueButton.SetActive(currentChoices.Count == 0 && currentStory.canContinue);
@@ -360,26 +348,9 @@ public class DialogueManager : MonoBehaviour
 
         string endedDialogueID = currentDialogueID;
 
-        // DEBUG: Check all conditions
-        Debug.Log($"[DialogueManager] === EXIT ROUTINE DEBUG ===");
-        Debug.Log($"[DialogueManager] GameManager.Instance != null? {GameManager.Instance != null}");
-        Debug.Log($"[DialogueManager] endedDialogueID is not empty? {!string.IsNullOrEmpty(endedDialogueID)} (value: '{endedDialogueID}')");
-        Debug.Log($"[DialogueManager] dialogueCompletedNaturally? {dialogueCompletedNaturally}");
-
-        // IMPORTANT: Mark dialogue as complete BEFORE firing events
-        // This ensures NPCController.OnDialogueComplete can check if it's complete
         if (GameManager.Instance != null && !string.IsNullOrEmpty(endedDialogueID) && dialogueCompletedNaturally)
         {
             GameManager.Instance.MarkDialogueComplete(endedDialogueID);
-            Debug.Log($"[DialogueManager] ✓✓✓ Marked dialogue '{endedDialogueID}' as COMPLETE in GameManager");
-        }
-        else if (!dialogueCompletedNaturally)
-        {
-            Debug.Log($"[DialogueManager] ✗ Dialogue '{endedDialogueID}' was CANCELLED - NOT marked as complete");
-        }
-        else
-        {
-            Debug.LogError($"[DialogueManager] ✗✗✗ FAILED TO MARK COMPLETE - One of the conditions failed!");
         }
 
         DialogueIsPlaying = false;
@@ -398,9 +369,6 @@ public class DialogueManager : MonoBehaviour
 
         currentDialogueID = "";
 
-        Debug.Log($"[DialogueManager] ■ ENDED dialogue: '{endedDialogueID}'");
-
-        // Fire events AFTER marking complete
         OnDialogueEnded?.Invoke(endedDialogueID);
         GameEvents.TriggerDialogueEnded(endedDialogueID);
     }
@@ -465,10 +433,6 @@ public class DialogueManager : MonoBehaviour
 
     // ==================== UTILITY ====================
 
-    /// <summary>
-    /// Process Ink tags for character names, etc.
-    /// Example: "speaker: John" tag sets the name text
-    /// </summary>
     private string ProcessTags(string text)
     {
         if (currentStory == null) return text;

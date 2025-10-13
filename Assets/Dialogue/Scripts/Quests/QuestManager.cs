@@ -1,0 +1,425 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// Universal quest manager that handles all quests in the game.
+/// Each quest can be triggered by dialogue choices and track objectives.
+/// </summary>
+public class QuestManager : MonoBehaviour
+{
+    public static QuestManager Instance { get; private set; }
+
+    [Header("Quests")]
+    [SerializeField] private List<Quest> quests = new List<Quest>();
+
+    [Header("Debug")]
+    [SerializeField] private bool showDebugInfo = true;
+
+    private void Awake()
+    {
+        if (Instance != null)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+    }
+
+    private void Start()
+    {
+        InitializeQuests();
+        SubscribeToEvents();
+    }
+
+    private void OnDestroy()
+    {
+        UnsubscribeFromEvents();
+    }
+
+    // ==================== INITIALIZATION ====================
+
+    private void InitializeQuests()
+    {
+        foreach (var quest in quests)
+        {
+            // Subscribe to interactable pickups
+            foreach (var objective in quest.objectives)
+            {
+                if (objective.type == QuestObjectiveType.PickupItem && objective.targetObject != null)
+                {
+                    var interactable = objective.targetObject.GetComponent<Interactable>();
+                    if (interactable != null)
+                    {
+                        interactable.OnPickedUp += (item) => OnObjectiveItemPickedUp(quest, objective);
+                    }
+                }
+
+                // Initially hide/disable objectives
+                if (objective.targetObject != null)
+                {
+                    objective.targetObject.SetActive(false);
+                }
+            }
+        }
+    }
+
+    private void SubscribeToEvents()
+    {
+        GameEvents.OnChoiceMade += OnChoiceMade;
+        GameEvents.OnDialogueEnded += OnDialogueEnded;
+    }
+
+    private void UnsubscribeFromEvents()
+    {
+        GameEvents.OnChoiceMade -= OnChoiceMade;
+        GameEvents.OnDialogueEnded -= OnDialogueEnded;
+    }
+
+    // ==================== EVENT HANDLERS ====================
+
+    private void OnChoiceMade(string dialogueID, int choiceIndex)
+    {
+        // ADD THIS DEBUG LOG AT THE VERY TOP:
+        Debug.Log($"[QuestManager] OnChoiceMade received: dialogue='{dialogueID}', choice={choiceIndex}");
+
+        foreach (var quest in quests)
+        {
+            // ADD THIS DEBUG LOG TOO:
+            Debug.Log($"[QuestManager] Checking quest '{quest.questID}': trigger='{quest.triggerDialogueID}', triggerChoice={quest.triggerChoiceIndex}, active={IsQuestActive(quest.questID)}");
+
+            // Check if this choice starts the quest
+            if (quest.triggerType == QuestTriggerType.OnChoice &&
+                quest.triggerDialogueID == dialogueID &&
+                quest.triggerChoiceIndex == choiceIndex &&
+                !IsQuestActive(quest.questID))
+            {
+                StartQuest(quest);
+            }
+        }
+    }
+
+    private void OnDialogueEnded(string dialogueID)
+    {
+        foreach (var quest in quests)
+        {
+            // Check if this dialogue completion starts the quest
+            if (quest.triggerType == QuestTriggerType.OnDialogueComplete &&
+                quest.triggerDialogueID == dialogueID &&
+                !IsQuestActive(quest.questID))
+            {
+                StartQuest(quest);
+            }
+        }
+    }
+
+    private void OnObjectiveItemPickedUp(Quest quest, QuestObjective objective)
+    {
+        if (!IsQuestActive(quest.questID)) return;
+
+        DebugLog($"Quest '{quest.questID}': Objective '{objective.description}' completed!");
+
+        // Mark objective as complete
+        objective.isCompleted = true;
+
+        // Set objective flag
+        if (!string.IsNullOrEmpty(objective.completionFlag))
+        {
+            GameManager.Instance?.SetFlag(objective.completionFlag, true);
+        }
+
+        // Check if all objectives are complete
+        if (AreAllObjectivesComplete(quest))
+        {
+            CompleteQuest(quest);
+        }
+    }
+
+    // ==================== QUEST CONTROL ====================
+
+    private void StartQuest(Quest quest)
+    {
+        if (string.IsNullOrEmpty(quest.questID))
+        {
+            Debug.LogError("[QuestManager] Quest has no ID!");
+            return;
+        }
+
+        DebugLog($"Starting quest: {quest.questID}");
+
+        // Set quest as active
+        GameManager.Instance?.SetFlag($"quest_{quest.questID}_active", true);
+
+        // Activate all objective objects
+        foreach (var objective in quest.objectives)
+        {
+            if (objective.targetObject != null)
+            {
+                objective.targetObject.SetActive(true);
+                DebugLog($"Activated objective object: {objective.targetObject.name}");
+            }
+        }
+
+        // Set start flag if specified
+        if (!string.IsNullOrEmpty(quest.startFlag))
+        {
+            GameManager.Instance?.SetFlag(quest.startFlag, true);
+        }
+
+        DebugLog($"Quest '{quest.questID}' started successfully!");
+    }
+
+    private void CompleteQuest(Quest quest)
+    {
+        DebugLog($"Quest '{quest.questID}' COMPLETED!");
+
+        // Mark quest as complete
+        GameManager.Instance?.SetFlag($"quest_{quest.questID}_active", false);
+        GameManager.Instance?.SetFlag($"quest_{quest.questID}_complete", true);
+
+        // Set completion flag if specified
+        if (!string.IsNullOrEmpty(quest.completionFlag))
+        {
+            GameManager.Instance?.SetFlag(quest.completionFlag, true);
+        }
+
+        // Deactivate objective objects if needed
+        foreach (var objective in quest.objectives)
+        {
+            if (objective.deactivateOnComplete && objective.targetObject != null)
+            {
+                objective.targetObject.SetActive(false);
+            }
+        }
+    }
+
+    // ==================== QUERY METHODS ====================
+
+    /// <summary>
+    /// Check if a quest is currently active
+    /// </summary>
+    public bool IsQuestActive(string questID)
+    {
+        if (GameManager.Instance == null) return false;
+        return GameManager.Instance.GetFlag($"quest_{questID}_active", false);
+    }
+
+    /// <summary>
+    /// Check if a quest is complete
+    /// </summary>
+    public bool IsQuestComplete(string questID)
+    {
+        if (GameManager.Instance == null) return false;
+        return GameManager.Instance.GetFlag($"quest_{questID}_complete", false);
+    }
+
+    /// <summary>
+    /// Check if all objectives of a quest are complete
+    /// </summary>
+    private bool AreAllObjectivesComplete(Quest quest)
+    {
+        foreach (var objective in quest.objectives)
+        {
+            if (!objective.isCompleted) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Get a quest by ID
+    /// </summary>
+    public Quest GetQuest(string questID)
+    {
+        return quests.Find(q => q.questID == questID);
+    }
+
+    // ==================== MANUAL CONTROL ====================
+
+    /// <summary>
+    /// Manually start a quest (useful for testing)
+    /// </summary>
+    public void ManualStartQuest(string questID)
+    {
+        Quest quest = GetQuest(questID);
+        if (quest != null)
+        {
+            StartQuest(quest);
+        }
+        else
+        {
+            Debug.LogWarning($"[QuestManager] Quest '{questID}' not found!");
+        }
+    }
+
+    /// <summary>
+    /// Manually complete a quest (useful for testing)
+    /// </summary>
+    public void ManualCompleteQuest(string questID)
+    {
+        Quest quest = GetQuest(questID);
+        if (quest != null)
+        {
+            foreach (var objective in quest.objectives)
+            {
+                objective.isCompleted = true;
+            }
+            CompleteQuest(quest);
+        }
+    }
+
+    /// <summary>
+    /// Reset a quest (for testing)
+    /// </summary>
+    public void ResetQuest(string questID)
+    {
+        Quest quest = GetQuest(questID);
+        if (quest != null)
+        {
+            GameManager.Instance?.RemoveFlag($"quest_{questID}_active");
+            GameManager.Instance?.RemoveFlag($"quest_{questID}_complete");
+
+            if (!string.IsNullOrEmpty(quest.startFlag))
+            {
+                GameManager.Instance?.RemoveFlag(quest.startFlag);
+            }
+
+            if (!string.IsNullOrEmpty(quest.completionFlag))
+            {
+                GameManager.Instance?.RemoveFlag(quest.completionFlag);
+            }
+
+            foreach (var objective in quest.objectives)
+            {
+                objective.isCompleted = false;
+                if (objective.targetObject != null)
+                {
+                    objective.targetObject.SetActive(false);
+                }
+
+                if (!string.IsNullOrEmpty(objective.completionFlag))
+                {
+                    GameManager.Instance?.RemoveFlag(objective.completionFlag);
+                }
+            }
+
+            DebugLog($"Quest '{questID}' reset");
+        }
+    }
+
+    // ==================== DEBUG ====================
+
+    private void DebugLog(string message)
+    {
+        if (showDebugInfo)
+        {
+            Debug.Log($"[QuestManager] {message}");
+        }
+    }
+
+    /// <summary>
+    /// Print all quest statuses
+    /// </summary>
+    [ContextMenu("Debug: Print All Quests")]
+    public void DebugPrintAllQuests()
+    {
+        Debug.Log("=== ALL QUESTS ===");
+        foreach (var quest in quests)
+        {
+            bool active = IsQuestActive(quest.questID);
+            bool complete = IsQuestComplete(quest.questID);
+            Debug.Log($"{quest.questID}: Active={active}, Complete={complete}");
+
+            foreach (var objective in quest.objectives)
+            {
+                Debug.Log($"  - {objective.description}: {(objective.isCompleted ? "DONE" : "PENDING")}");
+            }
+        }
+    }
+}
+
+// ==================== DATA STRUCTURES ====================
+
+/// <summary>
+/// A single quest with objectives
+/// </summary>
+[Serializable]
+public class Quest
+{
+    [Header("Quest Identity")]
+    [Tooltip("Unique ID for this quest")]
+    public string questID = "";
+
+    [Tooltip("Display name for the quest (optional)")]
+    public string questName = "";
+
+    [Tooltip("Description of the quest")]
+    [TextArea(2, 4)]
+    public string description = "";
+
+    [Header("Trigger Settings")]
+    [Tooltip("How this quest starts")]
+    public QuestTriggerType triggerType = QuestTriggerType.OnChoice;
+
+    [Tooltip("Dialogue ID that triggers this quest")]
+    public string triggerDialogueID = "";
+
+    [Tooltip("Choice index that triggers quest (for OnChoice trigger)")]
+    public int triggerChoiceIndex = 0;
+
+    [Header("Objectives")]
+    [Tooltip("List of objectives to complete")]
+    public List<QuestObjective> objectives = new List<QuestObjective>();
+
+    [Header("Flags (Optional)")]
+    [Tooltip("Flag to set when quest starts (optional)")]
+    public string startFlag = "";
+
+    [Tooltip("Flag to set when quest is complete (optional)")]
+    public string completionFlag = "";
+}
+
+/// <summary>
+/// A single objective within a quest
+/// </summary>
+[Serializable]
+public class QuestObjective
+{
+    [Tooltip("Type of objective")]
+    public QuestObjectiveType type = QuestObjectiveType.PickupItem;
+
+    [Tooltip("Description of this objective")]
+    public string description = "";
+
+    [Tooltip("The GameObject involved (item to pickup, NPC to talk to, etc.)")]
+    public GameObject targetObject;
+
+    [Tooltip("Deactivate the target object when objective is complete?")]
+    public bool deactivateOnComplete = false;
+
+    [Tooltip("Flag to set when this objective is complete (optional)")]
+    public string completionFlag = "";
+
+    [HideInInspector]
+    public bool isCompleted = false;
+}
+
+/// <summary>
+/// How a quest is triggered
+/// </summary>
+public enum QuestTriggerType
+{
+    OnChoice,           // Triggered when a specific choice is made
+    OnDialogueComplete, // Triggered when a dialogue ends
+    Manual              // Must be triggered manually via code
+}
+
+/// <summary>
+/// Types of quest objectives
+/// </summary>
+public enum QuestObjectiveType
+{
+    PickupItem,    // Pick up a specific item
+    TalkToNPC,     // Talk to a specific NPC (future use)
+    VisitLocation, // Visit a location (future use)
+    Custom         // Custom objective type (future use)
+}
