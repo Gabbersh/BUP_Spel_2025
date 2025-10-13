@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -30,25 +30,49 @@ public class ProgressionManager : MonoBehaviour
     /// </summary>
     public bool CanPlayDialogue(DialogueRequirement requirement)
     {
+        // CRITICAL DEBUG LOG - Shows when this is called
+        Debug.Log($"[ProgressionManager] ===== CanPlayDialogue called for: '{requirement?.dialogueID}' =====");
+
         if (requirement == null || GameManager.Instance == null)
+        {
+            Debug.Log("[ProgressionManager] requirement or GameManager is null - returning TRUE");
             return true;
+        }
 
         // Check if already completed and shouldn't repeat
         if (requirement.oneTimeOnly &&
             !string.IsNullOrEmpty(requirement.dialogueID) &&
             GameManager.Instance.IsDialogueComplete(requirement.dialogueID))
         {
+            Debug.Log("[ProgressionManager] Dialogue already complete and one-time-only - returning FALSE");
             return false;
         }
 
         // Check required dialogues
+        Debug.Log("[ProgressionManager] Checking required dialogues...");
         if (!CheckRequiredDialogues(requirement.requiredDialogues))
+        {
+            Debug.Log("[ProgressionManager] Required dialogues check FAILED");
             return false;
+        }
 
         // Check required choices
+        Debug.Log("[ProgressionManager] Checking required choices...");
         if (!CheckRequiredChoices(requirement.requiredChoices))
+        {
+            Debug.Log("[ProgressionManager] Required choices check FAILED");
             return false;
+        }
 
+        // Check required flags
+        Debug.Log("[ProgressionManager] Checking required flags...");
+        if (!CheckRequiredFlags(requirement.requiredFlags))
+        {
+            Debug.Log("[ProgressionManager] Required flags check FAILED");
+            return false;
+        }
+
+        Debug.Log("[ProgressionManager] ===== All checks PASSED - returning TRUE =====");
         return true;
     }
 
@@ -80,16 +104,29 @@ public class ProgressionManager : MonoBehaviour
 
     private bool CheckRequiredDialogues(List<string> required)
     {
-        if (required == null || required.Count == 0) return true;
+        if (required == null || required.Count == 0)
+        {
+            Debug.Log("[ProgressionManager] No required dialogues - returning TRUE");
+            return true;
+        }
+
         if (GameManager.Instance == null) return false;
+
+        Debug.Log($"[ProgressionManager] Checking {required.Count} required dialogues");
 
         foreach (string dialogueID in required)
         {
-            if (!GameManager.Instance.IsDialogueComplete(dialogueID))
+            bool isComplete = GameManager.Instance.IsDialogueComplete(dialogueID);
+            Debug.Log($"[ProgressionManager] Dialogue '{dialogueID}' complete? {isComplete}");
+
+            if (!isComplete)
             {
+                Debug.Log($"[ProgressionManager] ✗ Required dialogue '{dialogueID}' NOT complete");
                 return false;
             }
         }
+
+        Debug.Log("[ProgressionManager] ✓ All required dialogues complete");
         return true;
     }
 
@@ -108,17 +145,79 @@ public class ProgressionManager : MonoBehaviour
         foreach (var choiceReq in required)
         {
             int lastChoice = GameManager.Instance.GetLastChoice(choiceReq.dialogueID);
-
             Debug.Log($"[ProgressionManager] Dialogue '{choiceReq.dialogueID}': last choice = {lastChoice}, acceptable = [{string.Join(", ", choiceReq.acceptableChoices)}]");
 
             if (!choiceReq.acceptableChoices.Contains(lastChoice))
             {
-                Debug.Log($"[ProgressionManager] Choice {lastChoice} NOT in acceptable list - returning FALSE");
+                Debug.Log($"[ProgressionManager] ✗ Choice requirement NOT met");
                 return false;
             }
         }
 
-        Debug.Log("[ProgressionManager] All choice requirements met - returning TRUE");
+        Debug.Log("[ProgressionManager] ✓ All choice requirements met");
+        return true;
+    }
+
+    private bool CheckRequiredFlags(List<FlagRequirement> required)
+    {
+        if (required == null || required.Count == 0)
+        {
+            Debug.Log("[ProgressionManager] No required flags - returning TRUE");
+            return true;
+        }
+
+        if (GameManager.Instance == null)
+        {
+            Debug.LogError("[ProgressionManager] GameManager.Instance is NULL!");
+            return false;
+        }
+
+        Debug.Log($"[ProgressionManager] Checking {required.Count} required flags");
+
+        foreach (var flagReq in required)
+        {
+            if (string.IsNullOrEmpty(flagReq.flagName))
+            {
+                Debug.LogWarning("[ProgressionManager] Found empty flag name!");
+                continue;
+            }
+
+            Debug.Log($"[ProgressionManager] Checking flag: '{flagReq.flagName}'");
+
+            // Check if flag exists
+            if (!GameManager.Instance.HasFlag(flagReq.flagName))
+            {
+                Debug.Log($"[ProgressionManager] ✗ Flag '{flagReq.flagName}' does NOT exist - requirement NOT met");
+                return false;
+            }
+
+            // Check boolean flags
+            if (flagReq.checkType == FlagCheckType.Boolean)
+            {
+                bool flagValue = GameManager.Instance.GetFlag(flagReq.flagName, false);
+                Debug.Log($"[ProgressionManager] Flag '{flagReq.flagName}' = {flagValue}, expected {flagReq.expectedBoolValue}");
+
+                if (flagValue != flagReq.expectedBoolValue)
+                {
+                    Debug.Log($"[ProgressionManager] ✗ Flag check FAILED - requirement NOT met");
+                    return false;
+                }
+            }
+            // Check integer flags
+            else if (flagReq.checkType == FlagCheckType.Integer)
+            {
+                int flagValue = GameManager.Instance.GetFlag(flagReq.flagName, 0);
+                Debug.Log($"[ProgressionManager] Flag '{flagReq.flagName}' = {flagValue}, expected {flagReq.expectedIntValue}");
+
+                if (flagValue != flagReq.expectedIntValue)
+                {
+                    Debug.Log($"[ProgressionManager] ✗ Flag check FAILED - requirement NOT met");
+                    return false;
+                }
+            }
+        }
+
+        Debug.Log("[ProgressionManager] ✓ All flag requirements met!");
         return true;
     }
 
@@ -162,6 +261,14 @@ public class ProgressionManager : MonoBehaviour
             }
         }
 
+        foreach (var flagReq in requirement.requiredFlags)
+        {
+            if (!GameManager.Instance.HasFlag(flagReq.flagName))
+            {
+                return $"Requires flag: {flagReq.flagName}";
+            }
+        }
+
         return "Available";
     }
 }
@@ -170,7 +277,6 @@ public class ProgressionManager : MonoBehaviour
 
 /// <summary>
 /// Defines all requirements for a dialogue to be playable
-/// SIMPLIFIED: Removed flag requirements - use only dialogue requirements and choice requirements
 /// </summary>
 [Serializable]
 public class DialogueRequirement
@@ -186,6 +292,9 @@ public class DialogueRequirement
 
     [Tooltip("Specific choices that must have been made")]
     public List<ChoiceRequirement> requiredChoices = new List<ChoiceRequirement>();
+
+    [Tooltip("Flags that must be set")]
+    public List<FlagRequirement> requiredFlags = new List<FlagRequirement>();
 }
 
 /// <summary>
@@ -199,4 +308,32 @@ public class ChoiceRequirement
 
     [Tooltip("Acceptable choice indices (0-based)")]
     public List<int> acceptableChoices = new List<int>();
+}
+
+/// <summary>
+/// A flag requirement - checks if a flag has a specific value
+/// </summary>
+[Serializable]
+public class FlagRequirement
+{
+    [Tooltip("The flag name to check")]
+    public string flagName;
+
+    [Tooltip("Type of check to perform")]
+    public FlagCheckType checkType = FlagCheckType.Boolean;
+
+    [Tooltip("Expected boolean value (if checking boolean)")]
+    public bool expectedBoolValue = true;
+
+    [Tooltip("Expected integer value (if checking integer)")]
+    public int expectedIntValue = 1;
+}
+
+/// <summary>
+/// Type of flag check
+/// </summary>
+public enum FlagCheckType
+{
+    Boolean,  // Check if flag is true/false
+    Integer   // Check if flag equals a specific number
 }
