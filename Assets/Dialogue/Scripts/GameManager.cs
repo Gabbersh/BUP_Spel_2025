@@ -7,8 +7,12 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
 
     [Header("Save Settings")]
-    [SerializeField] private bool autoSave = true;
+    [SerializeField] private bool autoSave = false;  // Changed to false for playtesting
     [SerializeField] private string saveFileName = "game_save";
+
+    [Header("Playtesting")]
+    [Tooltip("Clear save data every time the game starts (for testing)")]
+    [SerializeField] private bool clearSaveOnStart = true;  // New option!
 
     private GameSaveData saveData;
 
@@ -36,7 +40,18 @@ public class GameManager : MonoBehaviour
 
     private void InitializeGameData()
     {
-        LoadGame();
+        if (clearSaveOnStart)
+        {
+            // Clear save data for playtesting
+            PlayerPrefs.DeleteAll();
+            PlayerPrefs.Save();
+            Debug.Log("[GameManager] Save data cleared for playtesting");
+            saveData = new GameSaveData();
+        }
+        else
+        {
+            LoadGame();
+        }
     }
 
     // ==================== SAVE/LOAD ====================
