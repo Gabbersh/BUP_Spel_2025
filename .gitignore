@@ -56,3 +56,8 @@ node_modules/
 
 # Unity User settings (local editor preferences)
 UserSettings/
+
+# Ignore TextMesh Pro generated font assets
+Assets/TextMesh Pro/**/*.asset
+Assets/TextMesh Pro/**/*.mat
+Assets/TextMesh Pro/**/*.meta
