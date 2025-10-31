@@ -6,6 +6,12 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// Handles all dialogue display and interaction.
+/// Uses Ink for dialogue, supports smart completion:
+/// - Story dialogues (no choices) = auto-complete
+/// - Quiz dialogues (has choices) = need #success tag on correct answer
+/// </summary>
 public class DialogueManager : MonoBehaviour
 {
     public static DialogueManager Instance { get; private set; }
@@ -34,9 +40,11 @@ public class DialogueManager : MonoBehaviour
     private Coroutine typingCoroutine;
     private bool waitingForClickToClose = false;
     private bool dialogueCompletedNaturally = false;
+    private bool dialogueHadChoices = false;
 
     public event Action<string> OnDialogueStarted;
     public event Action<string> OnDialogueEnded;
+    public event Action<string> OnDialogueEndedWithoutSuccess; // NEW: Fired when wrong choice made
 
     public bool DialogueIsPlaying { get; private set; }
 
@@ -158,6 +166,7 @@ public class DialogueManager : MonoBehaviour
         DialogueIsPlaying = true;
         waitingForClickToClose = false;
         dialogueCompletedNaturally = false;
+        dialogueHadChoices = false;
 
         if (dialoguePanel != null)
             dialoguePanel.SetActive(true);
@@ -265,34 +274,37 @@ public class DialogueManager : MonoBehaviour
     {
         DisplayChoices();
 
+        // Check if dialogue has ended
         if (!currentStory.canContinue && currentStory.currentChoices.Count == 0)
         {
-            // Check if the dialogue has a "success" tag to mark it as completed
-            bool hasSuccessTag = false;
-            if (currentStory.currentTags != null)
-            {
-                foreach (string tag in currentStory.currentTags)
-                {
-                    if (tag.Trim().ToLower() == "success")
-                    {
-                        hasSuccessTag = true;
-                        break;
-                    }
-                }
-            }
+            // SMART LOGIC:
+            // Story dialogues (no choices) = auto-complete
+            // Quiz dialogues (has choices) = need #success tag
 
-            // Only mark as "completed naturally" if it has the success tag
-            dialogueCompletedNaturally = hasSuccessTag;
-            waitingForClickToClose = true;
-
-            if (hasSuccessTag)
+            if (!dialogueHadChoices)
             {
-                Debug.Log($"[DialogueManager] Dialogue '{currentDialogueID}' has SUCCESS tag - will be marked complete");
+                // Story dialogue - auto-complete
+                dialogueCompletedNaturally = true;
             }
             else
             {
-                Debug.Log($"[DialogueManager] Dialogue '{currentDialogueID}' has NO success tag - will NOT be marked complete");
+                // Quiz dialogue - check for #success tag
+                bool hasSuccessTag = false;
+                if (currentStory.currentTags != null)
+                {
+                    foreach (string tag in currentStory.currentTags)
+                    {
+                        if (tag.Trim().ToLower() == "success")
+                        {
+                            hasSuccessTag = true;
+                            break;
+                        }
+                    }
+                }
+                dialogueCompletedNaturally = hasSuccessTag;
             }
+
+            waitingForClickToClose = true;
         }
     }
 
@@ -303,6 +315,12 @@ public class DialogueManager : MonoBehaviour
         if (isTyping) return;
 
         List<Choice> currentChoices = currentStory.currentChoices;
+
+        // Track if this dialogue has choices (for quiz detection)
+        if (currentChoices.Count > 0)
+        {
+            dialogueHadChoices = true;
+        }
 
         int index = 0;
         foreach (Choice choice in currentChoices)
@@ -347,8 +365,10 @@ public class DialogueManager : MonoBehaviour
         yield return new WaitForSeconds(autoExitDelay);
 
         string endedDialogueID = currentDialogueID;
+        bool wasCompletedSuccessfully = dialogueCompletedNaturally;
 
-        if (GameManager.Instance != null && !string.IsNullOrEmpty(endedDialogueID) && dialogueCompletedNaturally)
+        // Mark dialogue as complete if it has #success tag
+        if (GameManager.Instance != null && !string.IsNullOrEmpty(endedDialogueID) && wasCompletedSuccessfully)
         {
             GameManager.Instance.MarkDialogueComplete(endedDialogueID);
         }
@@ -371,6 +391,13 @@ public class DialogueManager : MonoBehaviour
 
         OnDialogueEnded?.Invoke(endedDialogueID);
         GameEvents.TriggerDialogueEnded(endedDialogueID);
+
+        // Fire special event if dialogue ended without success (wrong choice)
+        if (!wasCompletedSuccessfully && !string.IsNullOrEmpty(endedDialogueID))
+        {
+            Debug.Log($"[DialogueManager] Dialogue '{endedDialogueID}' ended WITHOUT success - firing OnDialogueEndedWithoutSuccess event");
+            OnDialogueEndedWithoutSuccess?.Invoke(endedDialogueID);
+        }
     }
 
     // ==================== INK INTEGRATION ====================

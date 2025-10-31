@@ -144,5 +144,5 @@ public enum NPCState
     Available,      // Can interact
     Talking,        // Currently in dialogue
     Completed,      // Finished their story
-    WaitingForChoice // Needs correct choice to progress
+    WaitingForChoice // Needs correct choice to progress (deprecated - kept for compatibility)
 }

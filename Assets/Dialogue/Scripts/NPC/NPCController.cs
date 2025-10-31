@@ -4,6 +4,7 @@ using UnityEngine;
 /// <summary>
 /// Controls individual NPC behavior, dialogues, and state.
 /// Handles all dialogue progression for a single character.
+/// SIMPLIFIED: Easy to use - just add Ink files in order!
 /// </summary>
 public class NPCController : MonoBehaviour
 {
@@ -16,10 +17,11 @@ public class NPCController : MonoBehaviour
     [SerializeField] private float interactionDistance = 0.5f;
 
     [Header("Dialogues")]
+    [Tooltip("Add your Ink dialogues in order. They'll play sequentially.")]
     [SerializeField] private List<NPCDialogue> dialogues = new List<NPCDialogue>();
 
-    [Header("Visual Feedback")]
-    [SerializeField] private GameObject availableIndicator;
+    [Header("Settings")]
+    [SerializeField] private float dialogueCooldown = 0.5f;
 
     [Header("Debug")]
     [SerializeField] private bool showDebugInfo = false;
@@ -30,8 +32,6 @@ public class NPCController : MonoBehaviour
     private bool isWaitingAtPOI = false;
     private CameraMovement cameraMovement;
     private float lastDialogueEndTime = -999f;
-    private float dialogueCooldown = 0.5f;
-    private bool hasLeftPOISinceLastDialogue = true;
 
     // Properties
     public string NPCID => npcID;
@@ -49,7 +49,6 @@ public class NPCController : MonoBehaviour
     private void Start()
     {
         UpdateState();
-        UpdateVisualIndicators();
 
         if (NPCManager.Instance != null)
         {
@@ -101,28 +100,30 @@ public class NPCController : MonoBehaviour
                 GameEvents.TriggerNPCBecameAvailable(npcID);
             else if (currentState == NPCState.Available)
                 GameEvents.TriggerNPCBecameUnavailable(npcID);
-
-            UpdateVisualIndicators();
         }
     }
 
     private NPCState DetermineState()
     {
+        // Currently talking?
         if (DialogueManager.Instance != null && DialogueManager.Instance.DialogueIsPlaying)
         {
             return NPCState.Talking;
         }
 
+        // No dialogues?
         if (dialogues == null || dialogues.Count == 0)
         {
             return NPCState.Locked;
         }
 
+        // All dialogues complete?
         if (currentDialogueIndex >= dialogues.Count)
         {
             return NPCState.Completed;
         }
 
+        // Check if current dialogue can play
         NPCDialogue currentDialogue = dialogues[currentDialogueIndex];
 
         if (currentDialogue.requirement != null && ProgressionManager.Instance != null)
@@ -131,11 +132,6 @@ public class NPCController : MonoBehaviour
 
             if (!canPlay)
             {
-                if (currentDialogue.requirement.requiredChoices != null &&
-                    currentDialogue.requirement.requiredChoices.Count > 0)
-                {
-                    return NPCState.WaitingForChoice;
-                }
                 return NPCState.Locked;
             }
         }
@@ -155,13 +151,7 @@ public class NPCController : MonoBehaviour
             associatedPOI.cameraTarget.position
         ) < interactionDistance;
 
-        bool wasWaitingAtPOI = isWaitingAtPOI;
         isWaitingAtPOI = atPOI && closeEnough;
-
-        if (wasWaitingAtPOI && !isWaitingAtPOI)
-        {
-            hasLeftPOISinceLastDialogue = true;
-        }
     }
 
     private void HandleAutoDialogue()
@@ -169,12 +159,8 @@ public class NPCController : MonoBehaviour
         if (!isWaitingAtPOI || !IsAvailable) return;
         if (DialogueManager.Instance == null || DialogueManager.Instance.DialogueIsPlaying) return;
 
+        // Simple cooldown to prevent immediate re-trigger
         if (Time.time - lastDialogueEndTime < dialogueCooldown)
-        {
-            return;
-        }
-
-        if (!hasLeftPOISinceLastDialogue)
         {
             return;
         }
@@ -207,11 +193,10 @@ public class NPCController : MonoBehaviour
             return;
         }
 
-        hasLeftPOISinceLastDialogue = false;
-
         if (DialogueManager.Instance != null)
         {
             DialogueManager.Instance.OnDialogueEnded += OnDialogueComplete;
+            DialogueManager.Instance.OnDialogueEndedWithoutSuccess += OnDialogueEndedWithoutSuccess;
             DialogueManager.Instance.EnterDialogueMode(dialogue.inkJSON, dialogue.requirement?.dialogueID, npcName);
         }
 
@@ -219,11 +204,48 @@ public class NPCController : MonoBehaviour
         UpdateState();
     }
 
+    private void OnDialogueEndedWithoutSuccess(string dialogueID)
+    {
+        if (DialogueManager.Instance != null)
+        {
+            DialogueManager.Instance.OnDialogueEndedWithoutSuccess -= OnDialogueEndedWithoutSuccess;
+        }
+
+        // Auto-exit POI when wrong choice is made
+        Debug.Log($"[NPC:{npcID}] Wrong choice detected in '{dialogueID}'");
+
+        if (cameraMovement == null)
+        {
+            Debug.LogError($"[NPC:{npcID}] CameraMovement is NULL! Cannot exit POI.");
+            return;
+        }
+
+        Debug.Log($"[NPC:{npcID}] CameraMovement found. IsInPOI = {cameraMovement.IsInPOI}");
+
+        if (cameraMovement.IsInPOI)
+        {
+            Debug.Log($"[NPC:{npcID}] Calling ReturnToRail()...");
+            cameraMovement.ReturnToRail();
+        }
+        else
+        {
+            Debug.LogWarning($"[NPC:{npcID}] Camera is not in POI, cannot return to rail");
+        }
+    }
+
     private void OnDialogueComplete(string dialogueID)
     {
         if (DialogueManager.Instance != null)
         {
             DialogueManager.Instance.OnDialogueEnded -= OnDialogueComplete;
+
+            // If dialogue was successful, also unsubscribe from OnDialogueEndedWithoutSuccess
+            // (since it won't fire for successful dialogues)
+            if (GameManager.Instance != null && GameManager.Instance.IsDialogueComplete(dialogueID))
+            {
+                DialogueManager.Instance.OnDialogueEndedWithoutSuccess -= OnDialogueEndedWithoutSuccess;
+            }
+            // If not successful, OnDialogueEndedWithoutSuccess will fire and unsubscribe itself
         }
 
         lastDialogueEndTime = Time.time;
@@ -236,27 +258,38 @@ public class NPCController : MonoBehaviour
 
         NPCDialogue currentDialogue = dialogues[currentDialogueIndex];
 
-        // FIXED: Check if dialogue should repeat based on completion status
-        // If repeatUntilCorrectChoice is true, only advance if dialogue was actually marked complete
-        if (currentDialogue.repeatUntilCorrectChoice && GameManager.Instance != null)
+        // Always mark dialogue as attempted
+        if (GameManager.Instance != null && !string.IsNullOrEmpty(dialogueID))
         {
-            bool wasCompleted = GameManager.Instance.IsDialogueComplete(dialogueID);
-
-            if (!wasCompleted)
-            {
-                // Dialogue was NOT marked complete (wrong choice or cancelled)
-                // Stay on this dialogue index - player must try again
-                Debug.Log($"[NPC:{npcID}] Dialogue '{dialogueID}' NOT completed - staying on index {currentDialogueIndex}");
-                UpdateState();
-                return;
-            }
-            else
-            {
-                // Dialogue was marked complete (correct choice with #success tag)
-                Debug.Log($"[NPC:{npcID}] Dialogue '{dialogueID}' completed successfully - advancing");
-            }
+            GameManager.Instance.MarkDialogueAttempted(dialogueID);
         }
 
+        // Check if dialogue was completed (had #success tag)
+        bool wasCompleted = false;
+        if (GameManager.Instance != null)
+        {
+            wasCompleted = GameManager.Instance.IsDialogueComplete(dialogueID);
+        }
+
+        if (wasCompleted)
+        {
+            // Dialogue completed successfully - advance to next
+            DebugLog($"Dialogue '{dialogueID}' completed successfully - advancing");
+        }
+        else if (currentDialogue.moveToNextAfterAttempt)
+        {
+            // Wrong choice, but this dialogue moves to next anyway (first-attempt dialogue)
+            DebugLog($"Dialogue '{dialogueID}' NOT completed, but moving to next (moveToNextAfterAttempt = true)");
+        }
+        else
+        {
+            // Wrong choice and should retry - stay on this dialogue
+            DebugLog($"Dialogue '{dialogueID}' NOT completed - staying on index {currentDialogueIndex}");
+            UpdateState();
+            return;
+        }
+
+        // Check if this is the last dialogue and should repeat
         bool isLastDialogue = currentDialogueIndex >= dialogues.Count - 1;
         bool shouldRepeat = currentDialogue.requirement != null && !currentDialogue.requirement.oneTimeOnly;
 
@@ -266,21 +299,11 @@ public class NPCController : MonoBehaviour
             return;
         }
 
+        // Move to next dialogue
         currentDialogueIndex++;
-        hasLeftPOISinceLastDialogue = true;
 
         UpdateState();
         GameEvents.TriggerProgressionChanged();
-    }
-
-    // ==================== VISUAL FEEDBACK ====================
-
-    private void UpdateVisualIndicators()
-    {
-        if (availableIndicator != null)
-        {
-            availableIndicator.SetActive(currentState == NPCState.Available);
-        }
     }
 
     // ==================== RELOCATION SUPPORT ====================
@@ -324,7 +347,6 @@ public class NPCController : MonoBehaviour
 
         lastDialogueEndTime = Time.time;
         UpdateState();
-        UpdateVisualIndicators();
     }
 
     public bool HasBeenRelocated()
@@ -386,10 +408,18 @@ public class NPCController : MonoBehaviour
 #endif
 }
 
+/// <summary>
+/// SIMPLIFIED: Just add your Ink file and optional requirements!
+/// </summary>
 [System.Serializable]
 public class NPCDialogue
 {
+    [Tooltip("Your Ink dialogue file")]
     public TextAsset inkJSON;
+
+    [Tooltip("Optional: Requirements for this dialogue to play")]
     public DialogueRequirement requirement;
-    public bool repeatUntilCorrectChoice = false;
+
+    [Tooltip("Move to next dialogue even if wrong choice? (For first-attempt dialogues that have a retry dialogue)")]
+    public bool moveToNextAfterAttempt = false;
 }
