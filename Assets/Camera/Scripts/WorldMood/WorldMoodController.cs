@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.Rendering.PostProcessing;
 using System.Collections;
+using System.Collections.Generic;
 
 public class WorldMoodController : MonoBehaviour
 {
@@ -34,15 +35,39 @@ public class WorldMoodController : MonoBehaviour
     [Header("Power Mapping")]
     [SerializeField, Range(0f, 1f)] private float minVisualPower = 0.2f; // maps "full happiness" to 20% power
 
-    private Coroutine moodRoutine;
+    [Header("Cloud Pooling")]
+    [SerializeField] private GameObject cloudPrefab;
+    [SerializeField] private Transform cloudSpawnArea;
+    [SerializeField] private Vector3 cloudSpawnBoxSize = new Vector3(100f, 30f, 100f);
+    [SerializeField] private int maxClouds = 1000;
+    [SerializeField] private float spawnInterval = 5f; // update frequency
 
+    private List<GameObject> cloudPool = new List<GameObject>();
+    private int currentActiveClouds = 0;
+
+    [Header("Car Groups (Enable based on mood)")]
+    [SerializeField] private List<GameObject> carGroups = new List<GameObject>();
+    [SerializeField] private AnimationCurve carActivationCurve = AnimationCurve.Linear(0, 0, 1, 1);
+
+    private Coroutine moodRoutine;
+    private Coroutine spawnRoutine;
+
+    // -----------------------
+    // --- Initialization ---
+    // -----------------------
     private void Start()
     {
         if (postProcessVolume != null && postProcessVolume.profile != null)
             postProcessVolume.profile.TryGetSettings(out colorGrading);
 
+        // Pre-create all clouds once (object pooling)
+        InitializeCloudPool();
+
         // Initialize mood instantly
         ApplyMood(MapPower(mayorsPower.GetPowerPercentage()));
+
+        // Start cloud updater
+        spawnRoutine = StartCoroutine(SpawnController());
     }
 
     private void OnEnable()
@@ -53,23 +78,29 @@ public class WorldMoodController : MonoBehaviour
     private void OnDisable()
     {
         MayorsPower.OnMayorPowerChanged -= OnPowerChanged;
+        if (spawnRoutine != null)
+            StopCoroutine(spawnRoutine);
     }
 
+    // -----------------------
+    // --- Power Changes ---
+    // -----------------------
     private void OnPowerChanged(float powerPercent)
     {
         if (moodRoutine != null)
             StopCoroutine(moodRoutine);
 
-        // Remap power so visuals reach full happiness at minVisualPower
         moodRoutine = StartCoroutine(SmoothMoodTransition(MapPower(powerPercent)));
     }
 
-    // Maps actual power (0–1) to visual range so happiness maxes out at minVisualPower
     private float MapPower(float actualPower)
     {
         return Mathf.InverseLerp(minVisualPower, 1f, actualPower);
     }
 
+    // -----------------------
+    // --- Mood Transition ---
+    // -----------------------
     private IEnumerator SmoothMoodTransition(float targetPower)
     {
         Color startLightColor = mainLight.color;
@@ -103,7 +134,7 @@ public class WorldMoodController : MonoBehaviour
             yield return null;
         }
 
-        // Final values
+        // Final apply
         mainLight.color = targetLightColor;
         mainLight.intensity = targetLightIntensity;
         RenderSettings.ambientLight = targetAmbient;
@@ -113,6 +144,9 @@ public class WorldMoodController : MonoBehaviour
             colorGrading.saturation.value = targetSaturation;
             colorGrading.contrast.value = targetContrast;
         }
+
+        // Update cars at end
+        UpdateCarGroups(targetPower);
     }
 
     private void ApplyMood(float powerPercent)
@@ -125,6 +159,81 @@ public class WorldMoodController : MonoBehaviour
         {
             colorGrading.saturation.value = Mathf.Lerp(minSaturation, maxSaturation, 1f - powerPercent);
             colorGrading.contrast.value = Mathf.Lerp(minContrast, maxContrast, 1f - powerPercent);
+        }
+
+        UpdateCarGroups(powerPercent);
+    }
+
+    // -----------------------
+    // --- Cloud Pooling ---
+    // -----------------------
+    private void InitializeCloudPool()
+    {
+        for (int i = 0; i < maxClouds; i++)
+        {
+            Vector3 pos = RandomPointInBox(cloudSpawnArea, cloudSpawnBoxSize);
+            GameObject cloud = Instantiate(cloudPrefab, pos, Quaternion.identity, cloudSpawnArea);
+            cloud.SetActive(false);
+            cloudPool.Add(cloud);
+        }
+    }
+
+    private IEnumerator SpawnController()
+    {
+        while (true)
+        {
+            float power = MapPower(mayorsPower.GetPowerPercentage());
+
+            // Clouds: more when power is HIGH
+            int targetClouds = Mathf.RoundToInt(Mathf.Lerp(0, maxClouds, power));
+            ManageCloudPool(targetClouds);
+
+            yield return new WaitForSeconds(spawnInterval);
+        }
+    }
+
+    private void ManageCloudPool(int targetCount)
+    {
+        if (targetCount == currentActiveClouds)
+            return; // no change
+
+        for (int i = 0; i < cloudPool.Count; i++)
+        {
+            bool shouldBeActive = i < targetCount;
+            if (cloudPool[i].activeSelf != shouldBeActive)
+            {
+                cloudPool[i].SetActive(shouldBeActive);
+
+                if (shouldBeActive)
+                    cloudPool[i].transform.position = RandomPointInBox(cloudSpawnArea, cloudSpawnBoxSize);
+            }
+        }
+
+        currentActiveClouds = targetCount;
+    }
+
+    private Vector3 RandomPointInBox(Transform center, Vector3 size)
+    {
+        return center.position + new Vector3(
+            Random.Range(-size.x / 2f, size.x / 2f),
+            Random.Range(-size.y / 2f, size.y / 2f),
+            Random.Range(-size.z / 2f, size.z / 2f)
+        );
+    }
+
+    // -----------------------
+    // --- Car Groups ---
+    // -----------------------
+    private void UpdateCarGroups(float power)
+    {
+        // Cars active when mood is LOW
+        int activeCount = Mathf.RoundToInt(carActivationCurve.Evaluate(1f - power) * carGroups.Count);
+
+        for (int i = 0; i < carGroups.Count; i++)
+        {
+            bool shouldBeActive = i < activeCount;
+            if (carGroups[i] != null && carGroups[i].activeSelf != shouldBeActive)
+                carGroups[i].SetActive(shouldBeActive);
         }
     }
 }

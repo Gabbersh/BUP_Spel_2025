@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3223557290221503886}
   - component: {fileID: 3131401473220980573}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Character
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -100,7 +100,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4890903863299974727}
   - component: {fileID: 221459926356474410}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Background
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -170,7 +170,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_Sprite: {fileID: 21300000, guid: 3c75c718e8e80b94084d46536807d065, type: 3}
-  m_Color: {r: 0.060825296, g: 0.45911938, b: 0, a: 1}
+  m_Color: {r: 0, g: 0, b: 0.5019608, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -190,7 +190,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5436619485477600269}
   - component: {fileID: 2116416370659308101}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: TagBoy
   m_TagString: Untagged
   m_Icon: {fileID: 0}

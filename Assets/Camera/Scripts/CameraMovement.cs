@@ -8,11 +8,11 @@ public class CameraMovement : MonoBehaviour
     public Transform railEnd;
 
     [Header("Movement Settings")]
-    public float buttonSpeed = 1f; // constant speed while holding button
+    public float buttonSpeed = 1f;
     public float fixedY = 5f;
 
     [Header("Momentum Settings")]
-    public float deceleration = 3f; // velocity decay after release
+    public float deceleration = 3f;
 
     [Header("POI Override")]
     public float overrideSpeed = 1f;
@@ -21,15 +21,14 @@ public class CameraMovement : MonoBehaviour
     private Vector3 overrideTargetPos;
     private Quaternion overrideTargetRot;
 
-    // Intro Settings
     [Header("Intro Settings")]
     public bool playIntroAtStart = true;
     public Transform introStartPoint;
-    public Transform introTargetPoint; 
+    public Transform introTargetPoint;
     public float introDuration = 3f;
     public AnimationCurve introCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
-    private bool introPlaying = false; 
+    private bool introPlaying = false;
 
     // Events
     public event System.Action OnLeftPOI;
@@ -46,11 +45,11 @@ public class CameraMovement : MonoBehaviour
     private Vector3 returnTargetPos;
     private Quaternion returnTargetRot;
 
-    private float t = 0.5f; // position along rail [0,1]
-    private float velocity = 0f; // current velocity along rail
-    private float externalInput = 0f; // -1 = left, 1 = right
+    private float t = 0.5f;
+    private float velocity = 0f;
+    private float externalInput = 0f;
 
-    public float RailPosition01 => t; // normalized 0-1 position along rail
+    public float RailPosition01 => t;
 
     private Quaternion railOriginalRot;
 
@@ -79,18 +78,11 @@ public class CameraMovement : MonoBehaviour
         if (!overrideActive && !returningToRail)
         {
             if (Mathf.Abs(externalInput) > 0.001f)
-            {
-                // Constant velocity while button is held
                 velocity = externalInput * buttonSpeed;
-            }
             else
-            {
-                // Decelerate velocity after button release
                 velocity = Mathf.MoveTowards(velocity, 0f, deceleration * Time.deltaTime);
-            }
 
-            t += velocity * Time.deltaTime;
-            t = Mathf.Clamp01(t);
+            t = Mathf.Clamp01(t + velocity * Time.deltaTime);
         }
     }
 
@@ -140,22 +132,26 @@ public class CameraMovement : MonoBehaviour
         }
     }
 
-    // ----- POI Interaction -----
+    // ---- FINAL FIXED POI METHOD (POI → POI works + input disabled) ----
     public void MoveToPOI(Vector3 targetPos, Quaternion targetRot)
     {
-        if (isTransitioning || !IsIdleOnRail) return;
+        // If we are currently in a POI, trigger leaving event
+        if (overrideActive)
+        {
+            HasReachedPOI = false;
+            OnLeftPOI?.Invoke();
+        }
 
+        // Notify systems input should disable
         OnLeftRail?.Invoke();
 
-        returnTargetPos = transform.position;
-        returnTargetRot = transform.rotation;
+        // Begin transition into new POI
+        isTransitioning = true;
+        overrideActive = true;
+        returningToRail = false;
 
         overrideTargetPos = targetPos;
         overrideTargetRot = targetRot;
-        overrideActive = true;
-        returningToRail = false;
-        isTransitioning = true;
-        HasReachedPOI = false;
     }
 
     public void ReturnToRail()
@@ -164,6 +160,7 @@ public class CameraMovement : MonoBehaviour
 
         Vector3 railPos = Vector3.Lerp(railStart.position, railEnd.position, t);
         railPos.y = fixedY;
+
         returnTargetPos = railPos;
         returnTargetRot = railOriginalRot;
 
@@ -175,23 +172,17 @@ public class CameraMovement : MonoBehaviour
         OnLeftPOI?.Invoke();
     }
 
-    // ----- External Input for buttons -----
     public void SetExternalInput(float input)
     {
-        if (!introPlaying)
-            externalInput = input;
-        else
-            externalInput = 0f; // Disable input during intro
+        externalInput = introPlaying ? 0f : input;
     }
 
     public void AddDeltaT(float delta)
     {
-        t += delta;
+        t = Mathf.Clamp01(t + delta);
         velocity = delta / Time.deltaTime;
-        t = Mathf.Clamp01(t);
     }
 
-    // Intro coroutine
     private IEnumerator PlayIntroSequence()
     {
         introPlaying = true;
@@ -205,12 +196,9 @@ public class CameraMovement : MonoBehaviour
 
         while (time < introDuration)
         {
-            float normalizedTime = time / introDuration;
-            float curveValue = introCurve.Evaluate(normalizedTime);
-
+            float curveValue = introCurve.Evaluate(time / introDuration);
             transform.position = Vector3.Lerp(startPos, endPos, curveValue);
             transform.rotation = Quaternion.Slerp(startRot, endRot, curveValue);
-
             time += Time.deltaTime;
             yield return null;
         }
@@ -219,7 +207,6 @@ public class CameraMovement : MonoBehaviour
         transform.rotation = endRot;
 
         introPlaying = false;
-
         overrideActive = true;
         overrideTargetPos = endPos;
         overrideTargetRot = endRot;
@@ -227,22 +214,14 @@ public class CameraMovement : MonoBehaviour
         OnReachedPOI?.Invoke();
 
         t = GetClosestTOnRail(endPos);
-        returnTargetPos = Vector3.Lerp(railStart.position, railEnd.position, t);
-        returnTargetPos.y = fixedY;
-        returnTargetRot = railOriginalRot;
     }
 
     private float GetClosestTOnRail(Vector3 position)
     {
-        if (railStart == null || railEnd == null)
-            return 0.5f;
-
         Vector3 a = railStart.position;
         Vector3 b = railEnd.position;
         Vector3 ab = b - a;
         Vector3 ap = position - a;
-
-        float tProjected = Vector3.Dot(ap, ab) / ab.sqrMagnitude;
-        return Mathf.Clamp01(tProjected);
+        return Mathf.Clamp01(Vector3.Dot(ap, ab) / ab.sqrMagnitude);
     }
 }
