@@ -20,6 +20,17 @@ public class NPCController : MonoBehaviour
     [Tooltip("Add your Ink dialogues in order. They'll play sequentially.")]
     [SerializeField] private List<NPCDialogue> dialogues = new List<NPCDialogue>();
 
+    [Header("Default Dialogues")]
+    [Tooltip("Idle Default: Plays when story dialogue is locked (waiting for quest/flag). Repeats each time.")]
+    [SerializeField] private TextAsset idleDefault;
+    [Tooltip("Force camera to exit POI after idle default?")]
+    [SerializeField] private bool forceExitAfterIdle = false;
+
+    [Tooltip("Completed Default: Plays when all story dialogues are finished. Repeats each time.")]
+    [SerializeField] private TextAsset completedDefault;
+    [Tooltip("Force camera to exit POI after completed default?")]
+    [SerializeField] private bool forceExitAfterCompleted = false;
+
     [Header("Settings")]
     [SerializeField] private float dialogueCooldown = 0.5f;
 
@@ -32,6 +43,9 @@ public class NPCController : MonoBehaviour
     private bool isWaitingAtPOI = false;
     private CameraMovement cameraMovement;
     private float lastDialogueEndTime = -999f;
+    private bool currentDialogueShouldForceExit = false; // Track if current dialogue should force exit
+    private bool hasPlayedDefaultThisEntry = false; // prevents repeat while inside POI
+    private bool wasInPOI = false; // detects POI entry
 
     // Properties
     public string NPCID => npcID;
@@ -120,6 +134,7 @@ public class NPCController : MonoBehaviour
         // All dialogues complete?
         if (currentDialogueIndex >= dialogues.Count)
         {
+            // Always mark as completed when all dialogues are finished
             return NPCState.Completed;
         }
 
@@ -132,7 +147,12 @@ public class NPCController : MonoBehaviour
 
             if (!canPlay)
             {
-                return NPCState.Locked;
+                // Dialogue is locked, but check if we have idle default
+                if (currentDialogue.customIdleDefault != null || idleDefault != null)
+                {
+                    return NPCState.Available; // Can play idle default
+                }
+                return NPCState.Locked; // No default, truly locked
             }
         }
 
@@ -156,17 +176,124 @@ public class NPCController : MonoBehaviour
 
     private void HandleAutoDialogue()
     {
-        if (!isWaitingAtPOI || !IsAvailable) return;
+        if (cameraMovement == null || associatedPOI == null) return;
+
+        bool atPOI = cameraMovement.IsInPOI;
+        bool closeEnough = Vector3.Distance(
+            cameraMovement.transform.position,
+            associatedPOI.cameraTarget.position
+        ) < interactionDistance;
+
+        isWaitingAtPOI = atPOI && closeEnough;
+
+        // --- Detect entering POI (only trigger once per entry) ---
+        if (isWaitingAtPOI && !wasInPOI)
+        {
+            wasInPOI = true;
+            hasPlayedDefaultThisEntry = false; // reset for new entry
+            TryAutoPlayDialogueOnEntry();
+        }
+        else if (!isWaitingAtPOI)
+        {
+            wasInPOI = false; // reset when leaving POI
+        }
+    }
+
+    /// <summary>
+    /// Plays the correct dialogue automatically when player ENTERS the POI.
+    /// </summary>
+    private void TryAutoPlayDialogueOnEntry()
+    {
         if (DialogueManager.Instance == null || DialogueManager.Instance.DialogueIsPlaying) return;
 
-        // Simple cooldown to prevent immediate re-trigger
         if (Time.time - lastDialogueEndTime < dialogueCooldown)
-        {
             return;
+
+        // Skip if we already played this entry (safety)
+        if (hasPlayedDefaultThisEntry)
+            return;
+
+        hasPlayedDefaultThisEntry = true;
+
+        // --- 1. If story dialogue is available, play that ---
+        if (IsAvailable && currentDialogueIndex < dialogues.Count)
+        {
+            NPCDialogue currentDialogue = dialogues[currentDialogueIndex];
+
+            bool locked = currentDialogue.requirement != null &&
+                          ProgressionManager.Instance != null &&
+                          !ProgressionManager.Instance.CanPlayDialogue(currentDialogue.requirement);
+
+            if (!locked)
+            {
+                StartCurrentDialogue();
+                return;
+            }
         }
 
-        StartCurrentDialogue();
+        // --- 2. Otherwise, play idle or completed defaults ---
+        if (currentDialogueIndex >= dialogues.Count)
+        {
+            if (completedDefault != null)
+            {
+                StartCompletedDefaultDialogue();
+                return;
+            }
+        }
+
+        // If story dialogue is locked → use idle default
+        if (idleDefault != null)
+        {
+            StartIdleDefaultDialogue();
+        }
     }
+
+    /// <summary>
+    /// NEW: Plays idle default dialogue when no story dialogue is available.
+    /// </summary>
+    private void StartIdleDefaultDialogue()
+    {
+        if (idleDefault == null || DialogueManager.Instance == null)
+            return;
+
+        currentDialogueShouldForceExit = forceExitAfterIdle;
+
+        DialogueManager.Instance.OnDialogueEnded += OnDefaultDialogueEnded;
+
+        DialogueManager.Instance.EnterDialogueMode(idleDefault, $"{npcID}_idle_default_entry", npcName);
+
+        DebugLog("Playing idle default dialogue (on POI entry)");
+
+        lastDialogueEndTime = Time.time;
+
+        GameEvents.TriggerNPCInteracted(npcID);
+    }
+
+
+    /// <summary>
+    /// NEW: Handles the auto-play of the "completed default" dialogue
+    /// every time player enters POI after all story dialogues are done.
+    /// </summary>
+    private void StartCompletedDefaultDialogue()
+    {
+        if (completedDefault == null || DialogueManager.Instance == null)
+            return;
+
+        currentDialogueShouldForceExit = forceExitAfterCompleted;
+
+        // Subscribe to OnDialogueEnded (cleanup + optional force exit)
+        DialogueManager.Instance.OnDialogueEnded += OnDefaultDialogueEnded;
+
+        DialogueManager.Instance.EnterDialogueMode(completedDefault, $"{npcID}_completed_default", npcName);
+
+        DebugLog("Playing completed default dialogue (auto-triggered)");
+
+        lastDialogueEndTime = Time.time;
+
+        GameEvents.TriggerNPCInteracted(npcID);
+    }
+
+
 
     public void TryInteract()
     {
@@ -180,28 +307,137 @@ public class NPCController : MonoBehaviour
 
     private void StartCurrentDialogue()
     {
+        // Determine which dialogue to play (story, idle, or completed)
+        TextAsset dialogueToPlay = null;
+        string dialogueIDToUse = "";
+        bool isDefaultDialogue = false;
+        currentDialogueShouldForceExit = false; // Reset
+
+        // Case 1: All dialogues complete → play completed default
         if (currentDialogueIndex >= dialogues.Count)
         {
-            return;
+            if (completedDefault != null)
+            {
+                dialogueToPlay = completedDefault;
+                dialogueIDToUse = $"{npcID}_completed_default";
+                isDefaultDialogue = true;
+                currentDialogueShouldForceExit = forceExitAfterCompleted; // Check if should force exit
+                DebugLog("Playing completed default dialogue");
+            }
+            else
+            {
+                // No completed default set - NPC has nothing to say
+                Debug.LogWarning($"[NPCController] {npcID} has no completed default dialogue set. Consider adding one!");
+                return;
+            }
+        }
+        // Case 2: Current dialogue exists
+        else
+        {
+            NPCDialogue currentDialogue = dialogues[currentDialogueIndex];
+
+            // Check if current dialogue is locked
+            bool isLocked = false;
+            if (currentDialogue.requirement != null && ProgressionManager.Instance != null)
+            {
+                isLocked = !ProgressionManager.Instance.CanPlayDialogue(currentDialogue.requirement);
+            }
+
+            if (isLocked)
+            {
+                // Dialogue is locked → play idle default
+                if (currentDialogue.customIdleDefault != null)
+                {
+                    dialogueToPlay = currentDialogue.customIdleDefault;
+                    dialogueIDToUse = $"{npcID}_custom_idle_{currentDialogueIndex}";
+                    isDefaultDialogue = true;
+                    currentDialogueShouldForceExit = forceExitAfterIdle; // Use global idle setting
+                    DebugLog($"Playing custom idle default for dialogue {currentDialogueIndex}");
+                }
+                else if (idleDefault != null)
+                {
+                    dialogueToPlay = idleDefault;
+                    dialogueIDToUse = $"{npcID}_idle_default";
+                    isDefaultDialogue = true;
+                    currentDialogueShouldForceExit = forceExitAfterIdle; // Use global idle setting
+                    DebugLog("Playing global idle default");
+                }
+                else
+                {
+                    // No idle default set - NPC is truly locked
+                    Debug.LogWarning($"[NPCController] {npcID} dialogue {currentDialogueIndex} is locked but has no idle default. NPC will not respond.");
+                    return;
+                }
+            }
+            else
+            {
+                // Play normal story dialogue
+                if (currentDialogue.inkJSON == null)
+                {
+                    Debug.LogError($"[NPCController] {npcID} dialogue {currentDialogueIndex} has no Ink JSON!");
+                    return;
+                }
+                dialogueToPlay = currentDialogue.inkJSON;
+                dialogueIDToUse = currentDialogue.requirement?.dialogueID;
+                isDefaultDialogue = false;
+                currentDialogueShouldForceExit = currentDialogue.forceExitPOI; // Check dialogue's force exit setting
+                DebugLog($"Playing story dialogue {currentDialogueIndex}");
+            }
         }
 
-        NPCDialogue dialogue = dialogues[currentDialogueIndex];
-
-        if (dialogue.inkJSON == null)
+        // Play the determined dialogue
+        if (dialogueToPlay != null && DialogueManager.Instance != null)
         {
-            Debug.LogError($"[NPCController] {npcID} dialogue {currentDialogueIndex} has no Ink JSON!");
-            return;
-        }
+            // Only subscribe to completion events for story dialogues, not defaults
+            if (!isDefaultDialogue)
+            {
+                DialogueManager.Instance.OnDialogueEnded += OnDialogueComplete;
+                DialogueManager.Instance.OnDialogueEndedWithoutSuccess += OnDialogueEndedWithoutSuccess;
+            }
+            else
+            {
+                // For defaults, just subscribe to ended event to clean up
+                DialogueManager.Instance.OnDialogueEnded += OnDefaultDialogueEnded;
+            }
 
-        if (DialogueManager.Instance != null)
-        {
-            DialogueManager.Instance.OnDialogueEnded += OnDialogueComplete;
-            DialogueManager.Instance.OnDialogueEndedWithoutSuccess += OnDialogueEndedWithoutSuccess;
-            DialogueManager.Instance.EnterDialogueMode(dialogue.inkJSON, dialogue.requirement?.dialogueID, npcName);
+            DialogueManager.Instance.EnterDialogueMode(dialogueToPlay, dialogueIDToUse, npcName);
         }
 
         GameEvents.TriggerNPCInteracted(npcID);
         UpdateState();
+    }
+
+    /// <summary>
+    /// Called when a default dialogue ends (no progression logic needed)
+    /// </summary>
+    private void OnDefaultDialogueEnded(string dialogueID)
+    {
+        if (DialogueManager.Instance != null)
+        {
+            DialogueManager.Instance.OnDialogueEnded -= OnDefaultDialogueEnded;
+        }
+
+        lastDialogueEndTime = Time.time;
+
+        // Check if this default dialogue should force exit POI
+        if (currentDialogueShouldForceExit)
+        {
+            ForceExitPOI("Default dialogue marked to force exit POI");
+        }
+
+        UpdateState();
+    }
+
+    /// <summary>
+    /// Helper method to force camera exit from POI
+    /// </summary>
+    private void ForceExitPOI(string reason)
+    {
+        if (cameraMovement != null && cameraMovement.IsInPOI)
+        {
+            DebugLog(reason);
+            cameraMovement.ReturnToRail();
+        }
     }
 
     private void OnDialogueEndedWithoutSuccess(string dialogueID)
@@ -211,26 +447,9 @@ public class NPCController : MonoBehaviour
             DialogueManager.Instance.OnDialogueEndedWithoutSuccess -= OnDialogueEndedWithoutSuccess;
         }
 
-        // Auto-exit POI when wrong choice is made
+        // Auto-exit POI when wrong choice is made (ALWAYS force exit on wrong choice)
         Debug.Log($"[NPC:{npcID}] Wrong choice detected in '{dialogueID}'");
-
-        if (cameraMovement == null)
-        {
-            Debug.LogError($"[NPC:{npcID}] CameraMovement is NULL! Cannot exit POI.");
-            return;
-        }
-
-        Debug.Log($"[NPC:{npcID}] CameraMovement found. IsInPOI = {cameraMovement.IsInPOI}");
-
-        if (cameraMovement.IsInPOI)
-        {
-            Debug.Log($"[NPC:{npcID}] Calling ReturnToRail()...");
-            cameraMovement.ReturnToRail();
-        }
-        else
-        {
-            Debug.LogWarning($"[NPC:{npcID}] Camera is not in POI, cannot return to rail");
-        }
+        ForceExitPOI($"Wrong choice made in '{dialogueID}' - auto-exiting POI");
     }
 
     private void OnDialogueComplete(string dialogueID)
@@ -273,13 +492,29 @@ public class NPCController : MonoBehaviour
 
         if (wasCompleted)
         {
-            // Dialogue completed successfully - advance to next
-            DebugLog($"Dialogue '{dialogueID}' completed successfully - advancing");
+            // Dialogue completed successfully!
+            DebugLog($"Dialogue '{dialogueID}' completed successfully");
+
+            // Check if should force exit POI (even on success)
+            if (currentDialogueShouldForceExit)
+            {
+                ForceExitPOI("Dialogue marked to force exit POI");
+            }
+
+            // Skip all retry dialogues that come next
+            int nextIndex = currentDialogueIndex + 1;
+            while (nextIndex < dialogues.Count && dialogues[nextIndex].isRetryDialogue)
+            {
+                DebugLog($"Skipping retry dialogue at index {nextIndex}");
+                nextIndex++;
+            }
+            currentDialogueIndex = nextIndex;
         }
         else if (currentDialogue.moveToNextAfterAttempt)
         {
             // Wrong choice, but this dialogue moves to next anyway (first-attempt dialogue)
             DebugLog($"Dialogue '{dialogueID}' NOT completed, but moving to next (moveToNextAfterAttempt = true)");
+            currentDialogueIndex++;
         }
         else
         {
@@ -298,9 +533,6 @@ public class NPCController : MonoBehaviour
             UpdateState();
             return;
         }
-
-        // Move to next dialogue
-        currentDialogueIndex++;
 
         UpdateState();
         GameEvents.TriggerProgressionChanged();
@@ -420,6 +652,18 @@ public class NPCDialogue
     [Tooltip("Optional: Requirements for this dialogue to play")]
     public DialogueRequirement requirement;
 
-    [Tooltip("Move to next dialogue even if wrong choice? (For first-attempt dialogues that have a retry dialogue)")]
+    [Header("Retry System")]
+    [Tooltip("Is this a retry dialogue? (Only plays if previous dialogue failed)")]
+    public bool isRetryDialogue = false;
+
+    [Tooltip("Move to next dialogue even if wrong choice? (For first-attempt dialogues)")]
     public bool moveToNextAfterAttempt = false;
+
+    [Header("POI Behavior")]
+    [Tooltip("Force camera to exit POI after this dialogue ends? (Happens after correct choice OR no choices)")]
+    public bool forceExitPOI = false;
+
+    [Header("Idle Default (Optional)")]
+    [Tooltip("Custom idle dialogue if THIS specific dialogue is locked. Leave empty to use global idle default.")]
+    public TextAsset customIdleDefault;
 }

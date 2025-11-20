@@ -27,8 +27,15 @@ public class DialogueManager : MonoBehaviour
     [SerializeField] private bool canSkipTyping = true;
 
     [Header("Choices UI")]
-    [SerializeField] private GameObject[] choiceButtons;
+    [SerializeField] private GameObject[] choiceButtons; // Set to 4 in inspector!
     private TextMeshProUGUI[] choiceTexts;
+
+    [Header("Choice Settings")]
+    [Tooltip("Randomize the order of choices? Prevents memorizing button positions.")]
+    [SerializeField] private bool shuffleChoices = true;
+
+    // Maps UI button index -> actual Ink choice index (after shuffling)
+    private List<int> shuffledChoiceIndices = new List<int>();
 
     [Header("Settings")]
     [SerializeField] private float autoExitDelay = 0.1f;
@@ -78,6 +85,12 @@ public class DialogueManager : MonoBehaviour
 
         if (dialoguePanel != null)
             dialoguePanel.SetActive(false);
+
+        // Validate button count
+        if (choiceButtons.Length < 4)
+        {
+            Debug.LogWarning($"[DialogueManager] Only {choiceButtons.Length} choice buttons assigned! Recommended: 4 for maximum flexibility.");
+        }
 
         choiceTexts = new TextMeshProUGUI[choiceButtons.Length];
         for (int i = 0; i < choiceButtons.Length; i++)
@@ -190,24 +203,33 @@ public class DialogueManager : MonoBehaviour
         StartCoroutine(ExitDialogueRoutine());
     }
 
-    public void MakeChoice(int choiceIndex)
+    public void MakeChoice(int uiButtonIndex)
     {
         if (!DialogueIsPlaying || isTyping) return;
 
-        if (choiceIndex < 0 || choiceIndex >= currentStory.currentChoices.Count)
+        // Convert UI button index to actual Ink choice index (handles shuffle)
+        if (uiButtonIndex < 0 || uiButtonIndex >= shuffledChoiceIndices.Count)
         {
-            Debug.LogError($"[DialogueManager] Invalid choice index: {choiceIndex}");
+            Debug.LogError($"[DialogueManager] Invalid UI button index: {uiButtonIndex}");
+            return;
+        }
+
+        int actualInkChoiceIndex = shuffledChoiceIndices[uiButtonIndex];
+
+        if (actualInkChoiceIndex < 0 || actualInkChoiceIndex >= currentStory.currentChoices.Count)
+        {
+            Debug.LogError($"[DialogueManager] Invalid Ink choice index: {actualInkChoiceIndex}");
             return;
         }
 
         if (GameManager.Instance != null && !string.IsNullOrEmpty(currentDialogueID))
         {
-            GameManager.Instance.RecordChoice(currentDialogueID, choiceIndex);
+            GameManager.Instance.RecordChoice(currentDialogueID, actualInkChoiceIndex);
         }
 
-        GameEvents.TriggerChoiceMade(currentDialogueID, choiceIndex);
+        GameEvents.TriggerChoiceMade(currentDialogueID, actualInkChoiceIndex);
 
-        currentStory.ChooseChoiceIndex(choiceIndex);
+        currentStory.ChooseChoiceIndex(actualInkChoiceIndex);
         SyncInkVariablesToGameManager();
 
         ContinueStory();
@@ -322,21 +344,43 @@ public class DialogueManager : MonoBehaviour
             dialogueHadChoices = true;
         }
 
-        int index = 0;
-        foreach (Choice choice in currentChoices)
+        // Create shuffled indices if shuffle is enabled
+        shuffledChoiceIndices.Clear();
+        for (int i = 0; i < currentChoices.Count; i++)
         {
-            if (index >= choiceButtons.Length)
+            shuffledChoiceIndices.Add(i);
+        }
+
+        // Shuffle the indices (randomize button order)
+        if (shuffleChoices && currentChoices.Count > 1)
+        {
+            for (int i = 0; i < shuffledChoiceIndices.Count; i++)
+            {
+                int temp = shuffledChoiceIndices[i];
+                int randomIndex = UnityEngine.Random.Range(i, shuffledChoiceIndices.Count);
+                shuffledChoiceIndices[i] = shuffledChoiceIndices[randomIndex];
+                shuffledChoiceIndices[randomIndex] = temp;
+            }
+        }
+
+        // Display choices in shuffled order
+        for (int uiIndex = 0; uiIndex < shuffledChoiceIndices.Count; uiIndex++)
+        {
+            if (uiIndex >= choiceButtons.Length)
             {
                 Debug.LogError($"[DialogueManager] Too many choices! UI supports {choiceButtons.Length}, got {currentChoices.Count}");
                 break;
             }
 
-            choiceButtons[index].SetActive(true);
-            choiceTexts[index].text = choice.text;
-            index++;
+            int inkChoiceIndex = shuffledChoiceIndices[uiIndex];
+            Choice choice = currentChoices[inkChoiceIndex];
+
+            choiceButtons[uiIndex].SetActive(true);
+            choiceTexts[uiIndex].text = choice.text;
         }
 
-        for (int i = index; i < choiceButtons.Length; i++)
+        // Hide unused buttons
+        for (int i = shuffledChoiceIndices.Count; i < choiceButtons.Length; i++)
         {
             choiceButtons[i].SetActive(false);
         }

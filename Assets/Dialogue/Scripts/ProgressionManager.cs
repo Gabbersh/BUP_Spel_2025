@@ -43,28 +43,6 @@ public class ProgressionManager : MonoBehaviour
             return false;
         }
 
-        // Check if previous dialogue is required
-        if (!string.IsNullOrEmpty(requirement.playsAfterDialogue))
-        {
-            bool previousComplete = GameManager.Instance.IsDialogueComplete(requirement.playsAfterDialogue);
-
-            if (!previousComplete)
-            {
-                return false;
-            }
-        }
-
-        // Check required choice (if any)
-        if (requirement.requiresChoice != null && !string.IsNullOrEmpty(requirement.requiresChoice.dialogueID))
-        {
-            int lastChoice = GameManager.Instance.GetLastChoice(requirement.requiresChoice.dialogueID);
-
-            if (!requirement.requiresChoice.acceptableChoices.Contains(lastChoice))
-            {
-                return false;
-            }
-        }
-
         // Check required flag (if any)
         if (requirement.requiresFlag != null && !string.IsNullOrEmpty(requirement.requiresFlag.flagName))
         {
@@ -130,23 +108,6 @@ public class ProgressionManager : MonoBehaviour
             return "Already completed (one-time only)";
         }
 
-        if (!string.IsNullOrEmpty(requirement.playsAfterDialogue))
-        {
-            if (!GameManager.Instance.IsDialogueComplete(requirement.playsAfterDialogue))
-            {
-                return $"Requires: {requirement.playsAfterDialogue}";
-            }
-        }
-
-        if (requirement.requiresChoice != null && !string.IsNullOrEmpty(requirement.requiresChoice.dialogueID))
-        {
-            int lastChoice = GameManager.Instance.GetLastChoice(requirement.requiresChoice.dialogueID);
-            if (!requirement.requiresChoice.acceptableChoices.Contains(lastChoice))
-            {
-                return $"Requires specific choice in: {requirement.requiresChoice.dialogueID}";
-            }
-        }
-
         if (requirement.requiresFlag != null && !string.IsNullOrEmpty(requirement.requiresFlag.flagName))
         {
             if (!GameManager.Instance.HasFlag(requirement.requiresFlag.flagName))
@@ -169,36 +130,15 @@ public class ProgressionManager : MonoBehaviour
 public class DialogueRequirement
 {
     [Header("Basic Info")]
-    [Tooltip("Unique ID for this dialogue (e.g. 'blacksmith_intro')")]
+    [Tooltip("Unique ID for this dialogue (e.g. 'alex_stadium_first')")]
     public string dialogueID;
 
     [Tooltip("Can this dialogue be played multiple times?")]
     public bool oneTimeOnly = true;
 
-    [Header("Sequential Dialogue (Optional)")]
-    [Tooltip("This dialogue only plays AFTER another dialogue is complete")]
-    public string playsAfterDialogue = "";
-
-    [Header("Choice-Based Branching (Optional)")]
-    [Tooltip("Requires a specific choice from a previous dialogue")]
-    public ChoiceRequirement requiresChoice;
-
     [Header("Quest Integration (Optional)")]
     [Tooltip("Requires a quest flag to be set (e.g. item collected)")]
     public FlagRequirement requiresFlag;
-}
-
-/// <summary>
-/// Requires a specific choice to have been made in a previous dialogue
-/// </summary>
-[Serializable]
-public class ChoiceRequirement
-{
-    [Tooltip("Which dialogue to check")]
-    public string dialogueID;
-
-    [Tooltip("Which choice indices are acceptable (0 = first choice, 1 = second, etc.)")]
-    public List<int> acceptableChoices = new List<int>();
 }
 
 /// <summary>
