@@ -6,6 +6,12 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// Handles all dialogue display and interaction.
+/// Uses Ink for dialogue, supports smart completion:
+/// - Story dialogues (no choices) = auto-complete
+/// - Quiz dialogues (has choices) = need #success tag on correct answer
+/// </summary>
 public class DialogueManager : MonoBehaviour
 {
     public static DialogueManager Instance { get; private set; }
@@ -21,8 +27,15 @@ public class DialogueManager : MonoBehaviour
     [SerializeField] private bool canSkipTyping = true;
 
     [Header("Choices UI")]
-    [SerializeField] private GameObject[] choiceButtons;
+    [SerializeField] private GameObject[] choiceButtons; // Set to 4 in inspector!
     private TextMeshProUGUI[] choiceTexts;
+
+    [Header("Choice Settings")]
+    [Tooltip("Randomize the order of choices? Prevents memorizing button positions.")]
+    [SerializeField] private bool shuffleChoices = true;
+
+    // Maps UI button index -> actual Ink choice index (after shuffling)
+    private List<int> shuffledChoiceIndices = new List<int>();
 
     [Header("Settings")]
     [SerializeField] private float autoExitDelay = 0.1f;
@@ -34,9 +47,11 @@ public class DialogueManager : MonoBehaviour
     private Coroutine typingCoroutine;
     private bool waitingForClickToClose = false;
     private bool dialogueCompletedNaturally = false;
+    private bool dialogueHadChoices = false;
 
     public event Action<string> OnDialogueStarted;
     public event Action<string> OnDialogueEnded;
+    public event Action<string> OnDialogueEndedWithoutSuccess; // NEW: Fired when wrong choice made
 
     public bool DialogueIsPlaying { get; private set; }
 
@@ -70,6 +85,12 @@ public class DialogueManager : MonoBehaviour
 
         if (dialoguePanel != null)
             dialoguePanel.SetActive(false);
+
+        // Validate button count
+        if (choiceButtons.Length < 4)
+        {
+            Debug.LogWarning($"[DialogueManager] Only {choiceButtons.Length} choice buttons assigned! Recommended: 4 for maximum flexibility.");
+        }
 
         choiceTexts = new TextMeshProUGUI[choiceButtons.Length];
         for (int i = 0; i < choiceButtons.Length; i++)
@@ -158,6 +179,7 @@ public class DialogueManager : MonoBehaviour
         DialogueIsPlaying = true;
         waitingForClickToClose = false;
         dialogueCompletedNaturally = false;
+        dialogueHadChoices = false;
 
         if (dialoguePanel != null)
             dialoguePanel.SetActive(true);
@@ -181,24 +203,33 @@ public class DialogueManager : MonoBehaviour
         StartCoroutine(ExitDialogueRoutine());
     }
 
-    public void MakeChoice(int choiceIndex)
+    public void MakeChoice(int uiButtonIndex)
     {
         if (!DialogueIsPlaying || isTyping) return;
 
-        if (choiceIndex < 0 || choiceIndex >= currentStory.currentChoices.Count)
+        // Convert UI button index to actual Ink choice index (handles shuffle)
+        if (uiButtonIndex < 0 || uiButtonIndex >= shuffledChoiceIndices.Count)
         {
-            Debug.LogError($"[DialogueManager] Invalid choice index: {choiceIndex}");
+            Debug.LogError($"[DialogueManager] Invalid UI button index: {uiButtonIndex}");
+            return;
+        }
+
+        int actualInkChoiceIndex = shuffledChoiceIndices[uiButtonIndex];
+
+        if (actualInkChoiceIndex < 0 || actualInkChoiceIndex >= currentStory.currentChoices.Count)
+        {
+            Debug.LogError($"[DialogueManager] Invalid Ink choice index: {actualInkChoiceIndex}");
             return;
         }
 
         if (GameManager.Instance != null && !string.IsNullOrEmpty(currentDialogueID))
         {
-            GameManager.Instance.RecordChoice(currentDialogueID, choiceIndex);
+            GameManager.Instance.RecordChoice(currentDialogueID, actualInkChoiceIndex);
         }
 
-        GameEvents.TriggerChoiceMade(currentDialogueID, choiceIndex);
+        GameEvents.TriggerChoiceMade(currentDialogueID, actualInkChoiceIndex);
 
-        currentStory.ChooseChoiceIndex(choiceIndex);
+        currentStory.ChooseChoiceIndex(actualInkChoiceIndex);
         SyncInkVariablesToGameManager();
 
         ContinueStory();
@@ -265,34 +296,37 @@ public class DialogueManager : MonoBehaviour
     {
         DisplayChoices();
 
+        // Check if dialogue has ended
         if (!currentStory.canContinue && currentStory.currentChoices.Count == 0)
         {
-            // Check if the dialogue has a "success" tag to mark it as completed
-            bool hasSuccessTag = false;
-            if (currentStory.currentTags != null)
-            {
-                foreach (string tag in currentStory.currentTags)
-                {
-                    if (tag.Trim().ToLower() == "success")
-                    {
-                        hasSuccessTag = true;
-                        break;
-                    }
-                }
-            }
+            // SMART LOGIC:
+            // Story dialogues (no choices) = auto-complete
+            // Quiz dialogues (has choices) = need #success tag
 
-            // Only mark as "completed naturally" if it has the success tag
-            dialogueCompletedNaturally = hasSuccessTag;
-            waitingForClickToClose = true;
-
-            if (hasSuccessTag)
+            if (!dialogueHadChoices)
             {
-                Debug.Log($"[DialogueManager] Dialogue '{currentDialogueID}' has SUCCESS tag - will be marked complete");
+                // Story dialogue - auto-complete
+                dialogueCompletedNaturally = true;
             }
             else
             {
-                Debug.Log($"[DialogueManager] Dialogue '{currentDialogueID}' has NO success tag - will NOT be marked complete");
+                // Quiz dialogue - check for #success tag
+                bool hasSuccessTag = false;
+                if (currentStory.currentTags != null)
+                {
+                    foreach (string tag in currentStory.currentTags)
+                    {
+                        if (tag.Trim().ToLower() == "success")
+                        {
+                            hasSuccessTag = true;
+                            break;
+                        }
+                    }
+                }
+                dialogueCompletedNaturally = hasSuccessTag;
             }
+
+            waitingForClickToClose = true;
         }
     }
 
@@ -304,21 +338,49 @@ public class DialogueManager : MonoBehaviour
 
         List<Choice> currentChoices = currentStory.currentChoices;
 
-        int index = 0;
-        foreach (Choice choice in currentChoices)
+        // Track if this dialogue has choices (for quiz detection)
+        if (currentChoices.Count > 0)
         {
-            if (index >= choiceButtons.Length)
+            dialogueHadChoices = true;
+        }
+
+        // Create shuffled indices if shuffle is enabled
+        shuffledChoiceIndices.Clear();
+        for (int i = 0; i < currentChoices.Count; i++)
+        {
+            shuffledChoiceIndices.Add(i);
+        }
+
+        // Shuffle the indices (randomize button order)
+        if (shuffleChoices && currentChoices.Count > 1)
+        {
+            for (int i = 0; i < shuffledChoiceIndices.Count; i++)
+            {
+                int temp = shuffledChoiceIndices[i];
+                int randomIndex = UnityEngine.Random.Range(i, shuffledChoiceIndices.Count);
+                shuffledChoiceIndices[i] = shuffledChoiceIndices[randomIndex];
+                shuffledChoiceIndices[randomIndex] = temp;
+            }
+        }
+
+        // Display choices in shuffled order
+        for (int uiIndex = 0; uiIndex < shuffledChoiceIndices.Count; uiIndex++)
+        {
+            if (uiIndex >= choiceButtons.Length)
             {
                 Debug.LogError($"[DialogueManager] Too many choices! UI supports {choiceButtons.Length}, got {currentChoices.Count}");
                 break;
             }
 
-            choiceButtons[index].SetActive(true);
-            choiceTexts[index].text = choice.text;
-            index++;
+            int inkChoiceIndex = shuffledChoiceIndices[uiIndex];
+            Choice choice = currentChoices[inkChoiceIndex];
+
+            choiceButtons[uiIndex].SetActive(true);
+            choiceTexts[uiIndex].text = choice.text;
         }
 
-        for (int i = index; i < choiceButtons.Length; i++)
+        // Hide unused buttons
+        for (int i = shuffledChoiceIndices.Count; i < choiceButtons.Length; i++)
         {
             choiceButtons[i].SetActive(false);
         }
@@ -347,8 +409,10 @@ public class DialogueManager : MonoBehaviour
         yield return new WaitForSeconds(autoExitDelay);
 
         string endedDialogueID = currentDialogueID;
+        bool wasCompletedSuccessfully = dialogueCompletedNaturally;
 
-        if (GameManager.Instance != null && !string.IsNullOrEmpty(endedDialogueID) && dialogueCompletedNaturally)
+        // Mark dialogue as complete if it has #success tag
+        if (GameManager.Instance != null && !string.IsNullOrEmpty(endedDialogueID) && wasCompletedSuccessfully)
         {
             GameManager.Instance.MarkDialogueComplete(endedDialogueID);
         }
@@ -371,6 +435,13 @@ public class DialogueManager : MonoBehaviour
 
         OnDialogueEnded?.Invoke(endedDialogueID);
         GameEvents.TriggerDialogueEnded(endedDialogueID);
+
+        // Fire special event if dialogue ended without success (wrong choice)
+        if (!wasCompletedSuccessfully && !string.IsNullOrEmpty(endedDialogueID))
+        {
+            Debug.Log($"[DialogueManager] Dialogue '{endedDialogueID}' ended WITHOUT success - firing OnDialogueEndedWithoutSuccess event");
+            OnDialogueEndedWithoutSuccess?.Invoke(endedDialogueID);
+        }
     }
 
     // ==================== INK INTEGRATION ====================

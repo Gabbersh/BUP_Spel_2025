@@ -57,12 +57,6 @@ public class QuestManager : MonoBehaviour
                         interactable.OnPickedUp += (item) => OnObjectiveItemPickedUp(quest, objective);
                     }
                 }
-
-                // Initially hide/disable objectives
-                //if (objective.targetObject != null)
-                //{
-                //    objective.targetObject.SetActive(false);
-                //}
             }
         }
     }
@@ -83,14 +77,10 @@ public class QuestManager : MonoBehaviour
 
     private void OnChoiceMade(string dialogueID, int choiceIndex)
     {
-        // ADD THIS DEBUG LOG AT THE VERY TOP:
-        Debug.Log($"[QuestManager] OnChoiceMade received: dialogue='{dialogueID}', choice={choiceIndex}");
+        DebugLog($"Choice made: dialogue='{dialogueID}', choice={choiceIndex}");
 
         foreach (var quest in quests)
         {
-            // ADD THIS DEBUG LOG TOO:
-            Debug.Log($"[QuestManager] Checking quest '{quest.questID}': trigger='{quest.triggerDialogueID}', triggerChoice={quest.triggerChoiceIndex}, active={IsQuestActive(quest.questID)}");
-
             // Check if this choice starts the quest
             if (quest.triggerType == QuestTriggerType.OnChoice &&
                 quest.triggerDialogueID == dialogueID &&
@@ -153,13 +143,13 @@ public class QuestManager : MonoBehaviour
         // Set quest as active
         GameManager.Instance?.SetFlag($"quest_{quest.questID}_active", true);
 
-        // Activate all objective objects (for logic, QuestHintManager handles visibility)
+        // Activate all objective objects
         foreach (var objective in quest.objectives)
         {
             if (objective.targetObject != null)
             {
                 objective.targetObject.SetActive(true);
-                DebugLog($"Activated objective object: {objective.targetObject.name}");
+                DebugLog($"Activated objective: {objective.targetObject.name}");
             }
         }
 
@@ -169,14 +159,14 @@ public class QuestManager : MonoBehaviour
             GameManager.Instance?.SetFlag(quest.startFlag, true);
         }
 
-        // ===== Activate quest mode in QuestHintManager =====
+        // Activate quest mode in QuestHintManager
         if (questHintManager != null)
         {
             questHintManager.ActivateQuestMode();
-            DebugLog($"Activated QuestHintManager for quest '{quest.questID}'");
+            DebugLog($"Activated quest hints for '{quest.questID}'");
         }
 
-        DebugLog($"Quest '{quest.questID}' started successfully!");
+        DebugLog($"Quest '{quest.questID}' started!");
     }
 
     private void CompleteQuest(Quest quest)

@@ -2,17 +2,21 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Central game state manager.
+/// Handles save/load, flags, and dialogue completion tracking.
+/// </summary>
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
     [Header("Save Settings")]
-    [SerializeField] private bool autoSave = false;  // Changed to false for playtesting
+    [SerializeField] private bool autoSave = false;
     [SerializeField] private string saveFileName = "game_save";
 
     [Header("Playtesting")]
     [Tooltip("Clear save data every time the game starts (for testing)")]
-    [SerializeField] private bool clearSaveOnStart = true;  // New option!
+    [SerializeField] private bool clearSaveOnStart = true;
 
     private GameSaveData saveData;
 
@@ -120,6 +124,23 @@ public class GameManager : MonoBehaviour
                saveData.completedDialogues.Contains(dialogueID);
     }
 
+    public void MarkDialogueAttempted(string dialogueID)
+    {
+        if (string.IsNullOrEmpty(dialogueID)) return;
+
+        if (!saveData.attemptedDialogues.Contains(dialogueID))
+        {
+            saveData.attemptedDialogues.Add(dialogueID);
+            if (autoSave) SaveGame();
+        }
+    }
+
+    public bool IsDialogueAttempted(string dialogueID)
+    {
+        return !string.IsNullOrEmpty(dialogueID) &&
+               saveData.attemptedDialogues.Contains(dialogueID);
+    }
+
     public void RecordChoice(string dialogueID, int choiceIndex)
     {
         if (string.IsNullOrEmpty(dialogueID)) return;
@@ -188,7 +209,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // ==================== HELPER METHODS ====================
+    // ==================== DEBUG ====================
 
     public void DebugPrintAllFlags()
     {
@@ -210,4 +231,5 @@ public class GameSaveData
 {
     public Dictionary<string, string> flags = new Dictionary<string, string>();
     public List<string> completedDialogues = new List<string>();
+    public List<string> attemptedDialogues = new List<string>();
 }

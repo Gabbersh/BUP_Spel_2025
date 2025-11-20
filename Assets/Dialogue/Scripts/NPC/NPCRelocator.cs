@@ -1,6 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Handles NPC relocation based on dialogue choices.
+/// Moves NPCs to new locations when specific dialogues complete.
+/// </summary>
 public class NPCRelocator : MonoBehaviour
 {
     [System.Serializable]
@@ -9,8 +13,8 @@ public class NPCRelocator : MonoBehaviour
         [Tooltip("Dialogue ID that triggers this relocation")]
         public string triggerDialogueID;
 
-        [Tooltip("Required choice index (-1 = any choice is fine, 0 = first choice, 1 = second choice, etc.")]
-        public int requiredChoiceIndex;
+        [Tooltip("Required choice index (-1 = any choice, 0 = first choice, 1 = second choice, etc.)")]
+        public int requiredChoiceIndex = -1;
 
         [Tooltip("NPC to relocate")]
         public NPCController npcToMove;
@@ -18,7 +22,7 @@ public class NPCRelocator : MonoBehaviour
         [Tooltip("New POI location")]
         public PointOfInterest newPOI;
 
-        [Tooltip("Should the old POI be disabled?")]
+        [Tooltip("Disable the old POI?")]
         public bool disableOldPOI = true;
     }
 
@@ -26,7 +30,7 @@ public class NPCRelocator : MonoBehaviour
     [SerializeField] private List<RelocationRule> relocationRules = new List<RelocationRule>();
 
     [Header("Debug")]
-    [SerializeField] private bool showDebugInfo = true;
+    [SerializeField] private bool showDebugInfo = false;
 
     // Store choices made during current dialogue
     private Dictionary<string, int> pendingChoices = new Dictionary<string, int>();
@@ -45,53 +49,53 @@ public class NPCRelocator : MonoBehaviour
 
     private void OnChoiceMade(string dialogueID, int choiceIndex)
     {
-        // Just store the choice, don't relocate yet
+        // Store the choice for when dialogue ends
         pendingChoices[dialogueID] = choiceIndex;
-        DebugLog($"Choice recorded: {dialogueID}, choice {choiceIndex}. Waiting for dialogue to end...");
+        DebugLog($"Choice recorded: {dialogueID}, choice {choiceIndex}");
     }
 
     private void OnDialogueEnded(string dialogueID)
     {
-        DebugLog($"Dialogue ended: {dialogueID}. Checking if it was completed...");
+        DebugLog($"Dialogue ended: {dialogueID}. Checking completion...");
 
-        // CRITICAL FIX: Only relocate if dialogue was actually completed, not cancelled
+        // Only relocate if dialogue was completed (has #success tag)
         if (GameManager.Instance == null || !GameManager.Instance.IsDialogueComplete(dialogueID))
         {
-            DebugLog($"Dialogue '{dialogueID}' was NOT completed (cancelled or failed). Skipping relocation.");
+            DebugLog($"Dialogue '{dialogueID}' NOT completed. Skipping relocation.");
             return;
         }
 
-        DebugLog($"Dialogue '{dialogueID}' was completed! Checking for relocations...");
+        DebugLog($"Dialogue '{dialogueID}' completed! Checking relocations...");
 
         // Get the choice that was made (if any)
         int choiceIndex = -1;
         if (pendingChoices.ContainsKey(dialogueID))
         {
             choiceIndex = pendingChoices[dialogueID];
-            pendingChoices.Remove(dialogueID); // Clean up
+            pendingChoices.Remove(dialogueID);
         }
 
-        // Now check for relocations with the completed dialogue
         CheckForRelocations(dialogueID, choiceIndex);
     }
 
     private void CheckForRelocations(string dialogueID, int choiceIndex = -1)
     {
-        DebugLog($"Checking {relocationRules.Count} rules for {dialogueID}, choice {choiceIndex}");
+        DebugLog($"Checking {relocationRules.Count} rules for '{dialogueID}', choice {choiceIndex}");
 
         foreach (var rule in relocationRules)
         {
+            // Must match dialogue ID
             if (rule.triggerDialogueID != dialogueID)
                 continue;
 
-            // CRITICAL: Check if required choice was made (if specified)
+            // Check if required choice was made (if specified)
             if (rule.requiredChoiceIndex != -1 && rule.requiredChoiceIndex != choiceIndex)
             {
-                DebugLog($"Choice mismatch: required {rule.requiredChoiceIndex}, got {choiceIndex}. Skipping relocation.");
+                DebugLog($"Choice mismatch: required {rule.requiredChoiceIndex}, got {choiceIndex}");
                 continue;
             }
 
-            DebugLog($"Match found! Relocating {rule.npcToMove?.NPCID}...");
+            DebugLog($"Match found! Relocating {rule.npcToMove?.NPCID}");
             RelocateNPC(rule);
         }
     }
@@ -100,7 +104,7 @@ public class NPCRelocator : MonoBehaviour
     {
         if (rule.npcToMove == null || rule.newPOI == null)
         {
-            Debug.LogWarning("[NPCRelocator] Invalid relocation rule - missing NPC or POI");
+            Debug.LogWarning("[NPCRelocator] Invalid rule - missing NPC or POI");
             return;
         }
 
@@ -108,7 +112,7 @@ public class NPCRelocator : MonoBehaviour
 
         rule.npcToMove.RelocateToNewPOI(rule.newPOI, rule.disableOldPOI);
 
-        DebugLog($"Relocation complete for {rule.npcToMove.NPCID}");
+        DebugLog($"Relocation complete: {rule.npcToMove.NPCID}");
     }
 
     private void DebugLog(string message)
