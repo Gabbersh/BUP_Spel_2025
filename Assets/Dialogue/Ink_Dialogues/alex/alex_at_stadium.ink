@@ -4,7 +4,7 @@ Ingen skrattar längre, ingen vågar prova nya saker. Det måste finnas ett bät
 Ingen har varit på torget på länge, och nu har han stängt ner det helt.
 Jag saknar att hänga där. Men jag blir illamående bara av att tänka på att gå dit.
 Tänk om något händer och jag inte kan hantera det?
-+ [Om du oroar dig så mycket så är det nog bäst att du stannar här.]
++ [Ja, det säkraste är nog att du bara stannar här.]
     Ja, då kan i alla fall inget läskigt hända.
     Vi ses senare...
     -> END

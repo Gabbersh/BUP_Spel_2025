@@ -1,10 +1,10 @@
 Jag kan inte göra det... Det känns för läskigt.
 
-+ [Stanna här då, fegis.]
++ [Jag fattar... Då är det nog bättre att du stannar här.]
     Okej... jag stannar här.
     -> END
 
 + [Jag följer med dig hela vägen till torget. Du är inte ensam.]
-    Tack... okej. Vi gör det tillsammans då.
+    Tack... Okej! Vi gör det tillsammans.
     #success
     -> END
