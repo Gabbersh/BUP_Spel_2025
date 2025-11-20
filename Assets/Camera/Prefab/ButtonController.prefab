@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 2139190376300209149}
   - component: {fileID: 1658954108805450208}
   - component: {fileID: 8572495440004892012}
+  - component: {fileID: 1753289545629483840}
   m_Layer: 0
   m_Name: ButtonController
   m_TagString: Untagged
@@ -64,3 +65,21 @@ MonoBehaviour:
   rightButtonObject: {fileID: 0}
   buttonSpeed: 1
   hideThreshold: 0.01
+--- !u!114 &1753289545629483840
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5899177347684287708}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e246b2a84af59964ab0936b605f51cc1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: '::'
+  cameraMovement: {fileID: 0}
+  handbook: {fileID: 0}
+  blockClick: {fileID: 0}
+  POI: {fileID: 0}
+  notebookIcon: {fileID: 0}
+  notebookButton: {fileID: 0}
