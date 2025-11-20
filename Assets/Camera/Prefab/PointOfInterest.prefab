@@ -24,13 +24,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5748644829315830490}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 1, z: 0, w: 0}
-  m_LocalPosition: {x: 0, y: 2.797, z: 4.733}
+  m_LocalRotation: {x: -0, y: 0.00000058114523, z: -0, w: -1}
+  m_LocalPosition: {x: -1.024, y: 2.923, z: -1.944}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 5375569172531804073}
-  m_LocalEulerAnglesHint: {x: 0, y: 180, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 360, z: 0}
 --- !u!1 &7505077798585771649
 GameObject:
   m_ObjectHideFlags: 0
@@ -84,8 +84,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 20.633457, y: 16.561499, z: 9.403692}
-  m_Center: {x: -1.0637226, y: 3.1713076, z: -1.5902739}
+  m_Size: {x: 2.4098291, y: 0.64764, z: 0.69945586}
+  m_Center: {x: -1.0611341, y: 2.8907974, z: -1.2498121}
 --- !u!114 &2344805417901274781
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -100,3 +100,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PointOfInterest
   cameraTarget: {fileID: 5501379580266699484}
   targetCamera: {fileID: 0}
+  characterPosition: {fileID: 0}
+  interactableLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
