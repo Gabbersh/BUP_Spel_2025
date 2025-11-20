@@ -60,6 +60,7 @@ public class MayorsPower : MonoBehaviour
 
         UpdateBar();
         UseGradient();
+        OnMayorPowerChanged?.Invoke(GetPowerPercentage());
 
         // Subscribe to game events
         GameEvents.OnChoiceMade += OnChoiceMade;
@@ -149,6 +150,7 @@ public class MayorsPower : MonoBehaviour
         }
 
         UpdateBar();
+        OnMayorPowerChanged?.Invoke(GetPowerPercentage());
 
         return true;
     }
@@ -238,4 +240,6 @@ public class MayorsPower : MonoBehaviour
     {
         SetPower(max);
     }
+
+    public static event System.Action<float> OnMayorPowerChanged;
 }

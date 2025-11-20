@@ -8,15 +8,18 @@ Shader "Custom/ConnectedOutline"
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        // tell Unity this shader uses transparency
+        Tags { "RenderType"="Transparent" "Queue"="Transparent" }
+
         Pass
         {
             Name "OUTLINE"
             Tags { "LightMode"="Always" }
 
             Cull Front
-            ZWrite On
+            ZWrite Off                   // disable depth writing so alpha blends correctly
             ZTest LEqual
+            Blend SrcAlpha OneMinusSrcAlpha   // standard alpha blending
 
             CGPROGRAM
             #pragma vertex vert
@@ -46,7 +49,7 @@ Shader "Custom/ConnectedOutline"
 
             fixed4 frag(v2f i) : SV_Target
             {
-                return _OutlineColor;
+                return _OutlineColor; // alpha now respected
             }
             ENDCG
         }

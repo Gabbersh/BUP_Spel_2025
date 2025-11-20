@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4524779803220171696}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: VisualHints
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -44,7 +44,8 @@ GameObject:
   - component: {fileID: 7996870834218108281}
   - component: {fileID: 4159452429389298763}
   - component: {fileID: 6566134454366807336}
-  m_Layer: 2
+  - component: {fileID: 5286581605392845199}
+  m_Layer: 6
   m_Name: VisualHintBusStop
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -143,3 +144,17 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &5286581605392845199
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8237856365660501830}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 841e48888a8c8da469fff2b9461a1c06, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HintBlinker
+  delayBeforeBlink: 10
+  blinkInterval: 0.5
