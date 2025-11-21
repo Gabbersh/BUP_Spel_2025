@@ -3,14 +3,13 @@ using UnityEngine;
 [RequireComponent(typeof(Collider))]
 public class PointOfInterest : MonoBehaviour
 {
-    public Transform cameraTarget;       // assign in inspector
-    public CameraMovement targetCamera;  // assign your camera here
+    public Transform cameraTarget;       // Camera target position/rotation
+    public CameraMovement targetCamera;  // Reference to CameraMovement
 
     [Header("Character Placement")]
     public Transform characterPosition;
 
-    // Layer(s) to ignore — can be "IgnorePostProcess" or "Ignore Raycast"
-    [SerializeField] private LayerMask interactableLayers = ~0; // default = everything
+    [SerializeField] private LayerMask interactableLayers = ~0;
 
     private Camera mainCam;
 
@@ -21,11 +20,9 @@ public class PointOfInterest : MonoBehaviour
 
     private void Update()
     {
-        // Mouse input (editor / PC)
         if (Input.GetMouseButtonDown(0))
             TryHandleClick(Input.mousePosition);
 
-        // Touch input (mobile)
         if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
             TryHandleClick(Input.GetTouch(0).position);
     }
@@ -34,14 +31,11 @@ public class PointOfInterest : MonoBehaviour
     {
         Ray ray = mainCam.ScreenPointToRay(screenPos);
 
-        // We use a mask so layers like IgnorePostProcess or IgnoreRaycast are skipped
         if (Physics.Raycast(ray, out RaycastHit hit, 1000f, interactableLayers))
         {
             PointOfInterest poi = hit.collider.GetComponent<PointOfInterest>();
             if (poi != null)
-            {
                 poi.OnPOISelected();
-            }
         }
     }
 
@@ -59,7 +53,10 @@ public class PointOfInterest : MonoBehaviour
             return;
         }
 
-        // Move the camera
+        // block POI if camera is transitioning or returning to rail
+        if (!targetCamera.CanInteractWithPOIs)
+            return;
+
         targetCamera.MoveToPOI(cameraTarget.position, cameraTarget.rotation);
     }
 
