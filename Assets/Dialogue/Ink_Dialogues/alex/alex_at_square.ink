@@ -1,7 +1,15 @@
-Wow, vi är här. Och ingenting farligt händer.
-Jag trodde nästan att jag skulle svimma, men nu känns det… faktiskt bra. Tack för att du följde med mig hit!
+Wow, vi är här.
+Oj vad mitt hjärta slår. Jag är väldigt illamående
 
-* [Ibland måste man möta sina rädslor. Du var jättemodig! Vi ses sen!]
-    Du har helt rätt, vi ses!
-    # success
+* [Du är modig, är det okej att stanna lite till?]
+    -> efter_forsta_val
+
+=== efter_forsta_val ===
+Jag trodde att det skulle hända någon sorts katastrof.
+Att jag skulle kräkas och ingen skulle vilja komma nära mig sen.
+Men nu känns det lite bättre, och det händer ju faktiskt inget farligt.
+Tack för att du följde med mig hit!
+ *[Ibland måste man möta sina rädslor. Vi ses!]
+ Du har helt rätt, vi ses!
+    #success
     -> END
