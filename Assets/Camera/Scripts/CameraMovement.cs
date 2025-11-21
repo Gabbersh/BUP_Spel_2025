@@ -39,7 +39,8 @@ public class CameraMovement : MonoBehaviour
     private bool isTransitioning = false;
     public bool HasReachedPOI { get; private set; } = false;
 
-    public bool IsIdleOnRail => !isTransitioning && !overrideActive && !returningToRail && Mathf.Abs(velocity) < 0.001f;
+    public bool IsIdleOnRail =>
+        !isTransitioning && !overrideActive && !returningToRail && Mathf.Abs(velocity) < 0.001f;
 
     private bool returningToRail = false;
     private Vector3 returnTargetPos;
@@ -53,6 +54,10 @@ public class CameraMovement : MonoBehaviour
 
     private Quaternion railOriginalRot;
 
+    // Allow POI → POI, block only transitions + return-to-rail + intro
+    public bool CanInteractWithPOIs =>
+        !isTransitioning && !returningToRail && !introPlaying;
+
     void Start()
     {
         railOriginalRot = transform.rotation;
@@ -60,7 +65,7 @@ public class CameraMovement : MonoBehaviour
         if (playIntroAtStart && introStartPoint != null && introTargetPoint != null)
         {
             transform.position = introStartPoint.position;
-            transform.rotation = introStartPoint.rotation;
+            transform.rotation = introStartPoint.rotation; 
             StartCoroutine(PlayIntroSequence());
         }
     }
@@ -132,20 +137,22 @@ public class CameraMovement : MonoBehaviour
         }
     }
 
-    // ---- FINAL FIXED POI METHOD (POI → POI works + input disabled) ----
+    // ---- POI MOVEMENT ----
     public void MoveToPOI(Vector3 targetPos, Quaternion targetRot)
     {
-        // If we are currently in a POI, trigger leaving event
+        // Block interaction during transitions or return-to-rail
+        if (returningToRail || isTransitioning)
+            return;
+
+        // If coming from another POI, fire leave event
         if (overrideActive)
         {
             HasReachedPOI = false;
             OnLeftPOI?.Invoke();
         }
 
-        // Notify systems input should disable
         OnLeftRail?.Invoke();
 
-        // Begin transition into new POI
         isTransitioning = true;
         overrideActive = true;
         returningToRail = false;
