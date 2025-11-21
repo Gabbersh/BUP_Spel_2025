@@ -8,9 +8,9 @@ Tänk om något händer och jag inte kan hantera det?
     Ja, då kan i alla fall inget läskigt hända.
     Vi ses senare...
     -> END
-+ [Vi går dit tillsammans. Det kommer vara jobbigt, men du är inte ensam.]
-    Du har rätt, om vi gör det tillsammans så kommer det nog att kännas lättare.
-    Och någon måste våga utmana borgmästarens regler.
-    Vi går dit!
++ [Vi kan väl gå och stå en bit utanför torget. Så kan vi spana på det.]
+    Det känns lite läskigt
+    Men då bryter vi inte mot borgmästarens regler i alla fall.
+    Vi testar...
     #success
     -> END
