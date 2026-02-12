@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using System.Collections;
 
 public class NotebookButton : MonoBehaviour
 {
@@ -12,6 +14,10 @@ public class NotebookButton : MonoBehaviour
     [Header("UI Button")]
     public GameObject notebookIcon;
     public Button notebookButton;
+
+    [Header("Auto Intro")]
+    public float delayBeforeStart = 0f;
+    private bool hasAutoOpened = false;
 
     private bool buttonEnabled = false;
     private bool notebookOpen = false;
@@ -55,6 +61,12 @@ public class NotebookButton : MonoBehaviour
     {
         buttonEnabled = true;
         SetButtonsActive(buttonEnabled);
+
+        if (!hasAutoOpened)
+        {
+            StartCoroutine(AutoIntroSequence());
+            hasAutoOpened = true;
+        }
     }
 
     private void HideButtons()
@@ -78,4 +90,40 @@ public class NotebookButton : MonoBehaviour
         cg.interactable = visible;
         cg.blocksRaycasts = visible;
     }
+
+    private IEnumerator AutoIntroSequence()
+    {
+        blockClick.SetActive(true); // Lås input
+        POI.SetActive(false);
+
+        yield return new WaitForSeconds(delayBeforeStart);
+
+        CanvasGroup cg = notebookIcon.GetComponent<CanvasGroup>();
+
+        float singleFadeTime = 0.5f; // tid 0 -> 1
+        int blinkCount = 3;
+
+        for (int i = 0; i < blinkCount; i++)
+        {
+            float timer = 0f;
+            float totalDuration = singleFadeTime * 2f; // 0->1->0
+
+            while (timer < totalDuration)
+            {
+                timer += Time.deltaTime;
+
+                float alpha = 1f - Mathf.PingPong(timer / singleFadeTime, 1f);
+                cg.alpha = alpha;
+
+                yield return null;
+            }
+        }
+
+        cg.alpha = 1f;
+
+        // Öppna handboken
+        if (!notebookOpen)
+            OnNoteBookPressed();
+    }
+
 }

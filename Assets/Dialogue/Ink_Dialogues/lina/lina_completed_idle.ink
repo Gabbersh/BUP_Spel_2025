@@ -1,1 +1,0 @@
-Tack för att du hjälpte mig!
