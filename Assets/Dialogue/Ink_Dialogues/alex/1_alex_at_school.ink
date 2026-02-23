@@ -12,6 +12,5 @@ Tänk om något händer och jag inte kan hantera det?
 + [Vi kan väl gå och stå en bit utanför torget? Så kan vi spana på det.]
     Det känns lite läskigt.
     Men då bryter vi inte mot borgmästarens regler i alla fall.
-    Vi testar...
-    #success
+    Vi testar... #success
     -> END
