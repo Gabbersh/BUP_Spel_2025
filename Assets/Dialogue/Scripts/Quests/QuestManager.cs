@@ -75,17 +75,57 @@ public class QuestManager : MonoBehaviour
 
     // ==================== EVENT HANDLERS ====================
 
+    private bool AreDialogueRequirementsMet(Quest quest, string currentDialogueID)
+    {
+        if (quest.requirementGroups == null || quest.requirementGroups.Count == 0)
+            return false;
+
+        foreach (var group in quest.requirementGroups)
+        {
+            bool groupSatisfied = false;
+
+            foreach (var dialogueID in group.anyOfDialogueIDs)
+            {
+                // Allow the current dialogue to count immediately for OnChoice
+                if (dialogueID == currentDialogueID)
+                {
+                    groupSatisfied = true;
+                    break;
+                }
+
+                if (GameManager.Instance.IsDialogueComplete(dialogueID))
+                {
+                    groupSatisfied = true;
+                    break;
+                }
+            }
+
+            if (!groupSatisfied)
+                return false;
+        }
+
+        return true;
+    }
+
     private void OnChoiceMade(string dialogueID, int choiceIndex)
     {
         DebugLog($"Choice made: dialogue='{dialogueID}', choice={choiceIndex}");
 
         foreach (var quest in quests)
         {
-            // Check if this choice starts the quest
-            if (quest.triggerType == QuestTriggerType.OnChoice &&
-                quest.triggerDialogueID == dialogueID &&
-                quest.triggerChoiceIndex == choiceIndex &&
-                !IsQuestActive(quest.questID))
+            if (quest.triggerType != QuestTriggerType.OnChoice)
+                continue;
+
+            if (IsQuestActive(quest.questID) || IsQuestComplete(quest.questID))
+                continue;
+
+            // If specific choice required
+            if (quest.triggerChoiceIndex != -1 &&
+                quest.triggerChoiceIndex != choiceIndex)
+                continue;
+
+            // Check AND/OR dialogue requirements
+            if (AreDialogueRequirementsMet(quest, dialogueID))
             {
                 StartQuest(quest);
             }
@@ -96,10 +136,13 @@ public class QuestManager : MonoBehaviour
     {
         foreach (var quest in quests)
         {
-            // Check if this dialogue completion starts the quest
-            if (quest.triggerType == QuestTriggerType.OnDialogueComplete &&
-                quest.triggerDialogueID == dialogueID &&
-                !IsQuestActive(quest.questID))
+            if (quest.triggerType != QuestTriggerType.OnDialogueComplete)
+                continue;
+
+            if (IsQuestActive(quest.questID) || IsQuestComplete(quest.questID))
+                continue;
+
+            if (AreDialogueRequirementsMet(quest, dialogueID))
             {
                 StartQuest(quest);
             }
@@ -143,6 +186,13 @@ public class QuestManager : MonoBehaviour
         // Set quest as active
         GameManager.Instance?.SetFlag($"quest_{quest.questID}_active", true);
 
+        // If quest has no objectives, complete immediately
+        if (quest.objectives == null || quest.objectives.Count == 0)
+        {
+            CompleteQuest(quest);
+            return;
+        }
+
         // Activate all objective objects
         foreach (var objective in quest.objectives)
         {
@@ -181,6 +231,7 @@ public class QuestManager : MonoBehaviour
         if (!string.IsNullOrEmpty(quest.completionFlag))
         {
             GameManager.Instance?.SetFlag(quest.completionFlag, true);
+            ProgressionManager.Instance?.NotifyProgressionChanged();
         }
 
         // Deactivate objective objects if needed
@@ -360,8 +411,15 @@ public class Quest
     [Tooltip("How this quest starts")]
     public QuestTriggerType triggerType = QuestTriggerType.OnChoice;
 
-    [Tooltip("Dialogue ID that triggers this quest")]
-    public string triggerDialogueID = "";
+    [Serializable]
+    public class DialogueRequirementGroup
+    {
+        [Tooltip("At least ONE of these dialogue IDs must be completed")]
+        public List<string> anyOfDialogueIDs = new List<string>();
+    }
+
+    [Header("Dialogue Requirements (AND between groups, OR within group)")]
+    public List<DialogueRequirementGroup> requirementGroups = new List<DialogueRequirementGroup>();
 
     [Tooltip("Choice index that triggers quest (for OnChoice trigger)")]
     public int triggerChoiceIndex = 0;
@@ -377,6 +435,8 @@ public class Quest
     [Tooltip("Flag to set when quest is complete (optional)")]
     public string completionFlag = "";
 }
+
+
 
 /// <summary>
 /// A single objective within a quest
