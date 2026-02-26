@@ -32,10 +32,6 @@ Utan den kommer jag absolut inte fixa att hålla tal.
 * [Sluta tänka, bara kör!]
     Jag... jag klarar det inte.
     Det är nog bättre att jag bara struntar i det.
+    Säg till om du hittar min turkeps, då kanske det går bättre.
     // Player chose wrong - dialogue CANCELLED (not completed)
     -> DONE
-
-=== function WaitForSeconds(seconds) ===
-// This is just a marker for narrative pacing
-// The actual wait happens in the typewriter effect
-~ return

@@ -8,10 +8,17 @@ using UnityEngine;
 public class NPCRelocator : MonoBehaviour
 {
     [System.Serializable]
+    public class DialogueRequirementGroup
+    {
+        [Tooltip("At least ONE of these dialogue IDs must be completed")]
+        public List<string> anyOfDialogueIDs = new List<string>();
+    }
+
+    [System.Serializable]
     public class RelocationRule
     {
-        [Tooltip("Dialogue ID that triggers this relocation")]
-        public string triggerDialogueID;
+        [Tooltip("All groups must be satisfied (AND between groups)")]
+        public List<DialogueRequirementGroup> requirementGroups = new List<DialogueRequirementGroup>();
 
         [Tooltip("Required choice index (-1 = any choice, 0 = first choice, 1 = second choice, etc.)")]
         public int requiredChoiceIndex = -1;
@@ -34,6 +41,7 @@ public class NPCRelocator : MonoBehaviour
 
     // Store choices made during current dialogue
     private Dictionary<string, int> pendingChoices = new Dictionary<string, int>();
+    private HashSet<RelocationRule> executedRules = new HashSet<RelocationRule>();
 
     private void Start()
     {
@@ -80,24 +88,47 @@ public class NPCRelocator : MonoBehaviour
 
     private void CheckForRelocations(string dialogueID, int choiceIndex = -1)
     {
-        DebugLog($"Checking {relocationRules.Count} rules for '{dialogueID}', choice {choiceIndex}");
+        DebugLog($"Checking {relocationRules.Count} rules after '{dialogueID}'");
 
         foreach (var rule in relocationRules)
         {
-            // Must match dialogue ID
-            if (rule.triggerDialogueID != dialogueID)
+            if (!AreRequirementsMet(rule))
                 continue;
 
-            // Check if required choice was made (if specified)
+            // Optional: check choice requirement (only applies to the dialogue that just ended)
             if (rule.requiredChoiceIndex != -1 && rule.requiredChoiceIndex != choiceIndex)
-            {
-                DebugLog($"Choice mismatch: required {rule.requiredChoiceIndex}, got {choiceIndex}");
                 continue;
+
+            if (executedRules.Contains(rule))
+                continue;
+
+            DebugLog($"All conditions met! Relocating {rule.npcToMove?.NPCID}");
+            RelocateNPC(rule);
+            executedRules.Add(rule);
+        }
+    }
+
+    private bool AreRequirementsMet(RelocationRule rule)
+    {
+        foreach (var group in rule.requirementGroups)
+        {
+            bool groupSatisfied = false;
+
+            foreach (var dialogueID in group.anyOfDialogueIDs)
+            {
+                if (GameManager.Instance.IsDialogueComplete(dialogueID))
+                {
+                    groupSatisfied = true;
+                    break;
+                }
             }
 
-            DebugLog($"Match found! Relocating {rule.npcToMove?.NPCID}");
-            RelocateNPC(rule);
+            // If one AND-group fails - entire rule fails
+            if (!groupSatisfied)
+                return false;
         }
+
+        return true;
     }
 
     private void RelocateNPC(RelocationRule rule)

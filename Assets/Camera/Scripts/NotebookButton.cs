@@ -95,6 +95,7 @@ public class NotebookButton : MonoBehaviour
     {
         blockClick.SetActive(true); // Lås input
         POI.SetActive(false);
+        notebookButton.interactable = false;
 
         yield return new WaitForSeconds(delayBeforeStart);
 
@@ -124,6 +125,8 @@ public class NotebookButton : MonoBehaviour
         // Öppna handboken
         if (!notebookOpen)
             OnNoteBookPressed();
+
+        notebookButton.interactable = true;
     }
 
 }
