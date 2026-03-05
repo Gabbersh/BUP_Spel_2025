@@ -13,6 +13,19 @@ public class QuestManager : MonoBehaviour
     [Header("Quests")]
     [SerializeField] private List<Quest> quests = new List<Quest>();
 
+    [Serializable]
+    public class ScriptedFadeEvent
+    {
+        [Header("Dialogue Requirements (AND between groups, OR within group)")]
+        public List<Quest.DialogueRequirementGroup> requirementGroups = new List<Quest.DialogueRequirementGroup>();
+
+        [HideInInspector]
+        public bool hasTriggered = false;
+    }
+
+    [Header("Scripted Events")]
+    [SerializeField] private List<ScriptedFadeEvent> fadeEvents = new List<ScriptedFadeEvent>();
+
     [Header("External References")]
     [SerializeField] private QuestHintManager questHintManager;
 
@@ -145,6 +158,21 @@ public class QuestManager : MonoBehaviour
             if (AreDialogueRequirementsMet(quest, dialogueID))
             {
                 StartQuest(quest);
+            }
+        }
+
+        foreach (var fadeEvent in fadeEvents)
+        {
+            if (fadeEvent.hasTriggered)
+                continue;
+
+            if (AreDialogueRequirementsMet(new Quest { requirementGroups = fadeEvent.requirementGroups }, dialogueID))
+            {
+                if (GameManager.Instance.IsDialogueComplete(dialogueID))
+                {
+                    fadeEvent.hasTriggered = true;
+                    ScreenFade.Instance.FadeOutThenIn();
+                }
             }
         }
     }

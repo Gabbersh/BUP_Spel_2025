@@ -22,14 +22,12 @@ Utan den kommer jag absolut inte fixa att hålla tal.
     -> Efter_andra_val
 
 === Efter_andra_val ===
-* [Börja med en mening. Jag står bredvid dig - vi gör det ihop.]
-    Okej, jag ska försöka.
-    . . .
-    Jag gjorde det! Det var jobbigt... men inte alls så hemskt som jag trodde att det skulle vara.
-    Tack för att du hjälpte mig! # success
+* [Du kanske kan testa att öva på talet inför några vänner?]
+    Okej, jag ska försöka vara modig.
+    Möt mig här i morgon! # success
     -> END
 
-* [Sluta tänka, bara kör!]
+* [Sluta tänka, bara kör! Du klarar det!]
     Jag... jag klarar det inte.
     Det är nog bättre att jag bara struntar i det.
     Säg till om du hittar min turkeps, då kanske det går bättre.

@@ -4,33 +4,66 @@ using UnityEngine.UI;
 
 public class ScreenFade : MonoBehaviour
 {
-    public Image fadeImage;
-    public float fadeDuration = 3f;
-    private Coroutine _fadeRoutine;
+    public static ScreenFade Instance { get; private set; }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public Image fadeImage;
+    public GameObject inputBlocker;
+    public GameObject nextDayText;
+    public float fadeDuration = 1.5f;
+
+    private Coroutine fadeRoutine;
+
+    public bool IsFading {  get; private set; }
+
+    private void Awake()
+    {
+        Instance = this;
+    }
+
+    private void Start()
     {
         StartCoroutine(FadeIn());
     }
 
-    // Update is called once per frame
-    void Update()
+    public void FadeOutThenIn()
     {
-        if (Input.GetKeyDown(KeyCode.K))
-        {
-            if (_fadeRoutine != null)
-                StopCoroutine(_fadeRoutine);
+        if (fadeRoutine != null)
+            StopCoroutine(fadeRoutine);
 
-            _fadeRoutine = StartCoroutine(FadeIn());
-        }
-        if (Input.GetKeyDown(KeyCode.L))
-        {
-            if (_fadeRoutine != null)
-                StopCoroutine(_fadeRoutine);
+        fadeRoutine = StartCoroutine(FadeSequence());
+    }
 
-            _fadeRoutine = StartCoroutine(FadeOut());
-        }
+    private IEnumerator FadeSequence()
+    {
+        if (inputBlocker != null)
+            inputBlocker.SetActive(true);
+
+        if (nextDayText != null)
+            nextDayText.SetActive(false);
+
+        IsFading = true;
+
+        yield return StartCoroutine(FadeOut());
+
+        yield return new WaitForSeconds(.5f);
+
+        // Skärmen är nu helt svart
+        if (nextDayText != null)
+            nextDayText.SetActive(true);
+
+        yield return new WaitForSeconds(2f);
+
+        if (nextDayText != null)
+            nextDayText.SetActive(false);
+
+        yield return new WaitForSeconds(.5f);
+
+        yield return StartCoroutine(FadeIn());
+
+        IsFading = false;
+
+        if (inputBlocker != null)
+            inputBlocker.SetActive(false);
     }
 
     public IEnumerator FadeIn()
