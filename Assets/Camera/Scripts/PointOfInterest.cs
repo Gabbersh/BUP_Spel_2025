@@ -20,6 +20,12 @@ public class PointOfInterest : MonoBehaviour
 
     private void Update()
     {
+        // Scripted event
+        if (ScreenFade.Instance != null && ScreenFade.Instance.IsFading)
+        {
+            return;
+        }
+
         if (Input.GetMouseButtonDown(0))
             TryHandleClick(Input.mousePosition);
 

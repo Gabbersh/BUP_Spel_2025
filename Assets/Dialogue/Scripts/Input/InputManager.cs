@@ -31,6 +31,12 @@ public class InputManager : MonoBehaviour
 
     private void Update()
     {
+        // Scripted event
+        if (ScreenFade.Instance != null && ScreenFade.Instance.IsFading)
+        {
+            return;
+        }
+
         // ALWAYS detect input, let subscribers decide what to do
         DetectInput();
     }
