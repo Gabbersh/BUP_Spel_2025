@@ -1,6 +1,6 @@
 # speaker: Alex
 Hej! Vad kul att träffa på dig här, Lina.
-Har du märkt hur Säkerköping faktiskt blivit bättre nu när vi vågat gå emot borgmästarens regler?
+Har du märkt hur Säkerköping faktiskt blivit bättre, nu när vi vågat gå emot borgmästarens regler?
 
 # speaker: Lina
 Ja... vi var rädda först.
@@ -18,7 +18,7 @@ Det känns läskigt, men vi har ju bevis.
 === alex_ready_for_mayor ===
 
 # speaker: Alex
-Hur känner ni? Är ni redo att möta borgmästaren nu?
+Hur känner ni? Är vi redo att möta borgmästaren nu?
 
 * [Ja, vi gör det tillsammans!]
     # speaker: Lina

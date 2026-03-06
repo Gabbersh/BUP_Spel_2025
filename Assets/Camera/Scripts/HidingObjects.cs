@@ -80,6 +80,15 @@ public class HidingObjects : MonoBehaviour
         }
     }
 
+    public void RegisterObject(GameObject obj)
+    {
+        if (!objectsToToggle.Contains(obj))
+            objectsToToggle.Add(obj);
+
+        if (cameraMovement != null && cameraMovement.IsInPOI)
+            obj.SetActive(false);
+    }
+
     private void HandleIntroEnd()
     {
         SetActiveState(hideDuringIntro, true);
