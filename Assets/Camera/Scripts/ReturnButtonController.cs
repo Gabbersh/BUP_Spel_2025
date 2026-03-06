@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -6,17 +7,21 @@ public class ReturnButtonController : MonoBehaviour
     public CameraMovement cameraMovement;
     public Button returnButton;
 
+    private CanvasGroup canvasGroup;
+    private bool dialogueActive = false;
+
     void Start()
     {
-        returnButton.gameObject.SetActive(false);
+        canvasGroup = returnButton.GetComponent<CanvasGroup>();
+
+        HideButton();
+
         returnButton.onClick.AddListener(OnReturnPressed);
 
-        // Subscribe to camera events
         cameraMovement.OnReachedPOI += ShowButton;
         cameraMovement.OnLeftPOI += HideButton;
         cameraMovement.OnReturnedToRail += HideButton;
 
-        // Subscribe to dialogue events to disable button during dialogue
         GameEvents.OnDialogueStarted += OnDialogueStarted;
         GameEvents.OnDialogueEnded += OnDialogueEnded;
     }
@@ -30,31 +35,48 @@ public class ReturnButtonController : MonoBehaviour
 
     private void ShowButton()
     {
-        returnButton.gameObject.SetActive(true);
+        StartCoroutine(DelayedUpdate());
+    }
+
+    private IEnumerator DelayedUpdate()
+    {
+        yield return null; // vänta en frame
+        UpdateButtonState();
     }
 
     private void HideButton()
     {
-        returnButton.gameObject.SetActive(false);
+        canvasGroup.alpha = 0;
+        canvasGroup.interactable = false;
+        canvasGroup.blocksRaycasts = false;
     }
 
     private void OnDialogueStarted(string dialogueID)
     {
-        // Disable button during dialogue
-        returnButton.interactable = false;
-        Debug.Log("[ReturnButton] Disabled during dialogue");
+        dialogueActive = true;
+        UpdateButtonState();
     }
 
     private void OnDialogueEnded(string dialogueID)
     {
-        // Re-enable button after dialogue
-        returnButton.interactable = true;
-        Debug.Log("[ReturnButton] Re-enabled after dialogue");
+        dialogueActive = false;
+        UpdateButtonState();
+    }
+
+    private void UpdateButtonState()
+    {
+        bool shouldShow =
+            cameraMovement.IsInPOI &&
+            !dialogueActive &&
+            !ScreenFade.Instance.IsFading;
+
+        canvasGroup.alpha = shouldShow ? 1 : 0;
+        canvasGroup.interactable = shouldShow;
+        canvasGroup.blocksRaycasts = shouldShow;
     }
 
     void OnReturnPressed()
     {
-        // No need to check DialogueIsPlaying anymore - button is disabled during dialogue
         cameraMovement.ReturnToRail();
     }
 }

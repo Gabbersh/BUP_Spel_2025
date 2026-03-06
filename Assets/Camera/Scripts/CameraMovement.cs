@@ -28,6 +28,11 @@ public class CameraMovement : MonoBehaviour
     public float introDuration = 3f;
     public AnimationCurve introCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
+    [Header("Outro Settings")]
+    public Transform outroEndPoint;
+    public float outroDuration = 4f;
+    public AnimationCurve outroCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+
     private bool introPlaying = false;
 
     // Events
@@ -230,5 +235,45 @@ public class CameraMovement : MonoBehaviour
         Vector3 ab = b - a;
         Vector3 ap = position - a;
         return Mathf.Clamp01(Vector3.Dot(ap, ab) / ab.sqrMagnitude);
+    }
+
+    public void StartOutro()
+    {
+        if (!introPlaying)
+        {
+            ScreenFade.Instance.FadeOutOutro();
+            StartCoroutine(PlayOutroSequence());
+        }
+    }
+
+    private IEnumerator PlayOutroSequence()
+    {
+        introPlaying = true;
+        OnLeftRail?.Invoke();
+
+        yield return new WaitForSeconds(2f);
+
+        float time = 0f;
+
+        // Start där kameran är NU
+        Vector3 startPos = transform.position;
+        Quaternion startRot = transform.rotation;
+
+        Vector3 endPos = outroEndPoint.position;
+        Quaternion endRot = outroEndPoint.rotation;
+
+        while (time < outroDuration)
+        {
+            float curveValue = outroCurve.Evaluate(time / outroDuration);
+
+            transform.position = Vector3.Lerp(startPos, endPos, curveValue);
+            transform.rotation = Quaternion.Slerp(startRot, endRot, curveValue);
+
+            time += Time.deltaTime;
+            yield return null;
+        }
+
+        transform.position = endPos;
+        transform.rotation = endRot;
     }
 }
