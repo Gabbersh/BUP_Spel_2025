@@ -39,8 +39,7 @@ public class CameraMovement : MonoBehaviour
     private bool isTransitioning = false;
     public bool HasReachedPOI { get; private set; } = false;
 
-    public bool IsIdleOnRail =>
-        !isTransitioning && !overrideActive && !returningToRail && Mathf.Abs(velocity) < 0.001f;
+    public bool IsIdleOnRail => !isTransitioning && !overrideActive && !returningToRail && Mathf.Abs(velocity) < 0.001f;
 
     private bool returningToRail = false;
     private Vector3 returnTargetPos;
@@ -54,7 +53,6 @@ public class CameraMovement : MonoBehaviour
 
     private Quaternion railOriginalRot;
 
-    // Allow POI → POI, block only transitions + return-to-rail + intro
     public bool CanInteractWithPOIs =>
         !isTransitioning && !returningToRail && !introPlaying;
 
@@ -65,7 +63,7 @@ public class CameraMovement : MonoBehaviour
         if (playIntroAtStart && introStartPoint != null && introTargetPoint != null)
         {
             transform.position = introStartPoint.position;
-            transform.rotation = introStartPoint.rotation; 
+            transform.rotation = introStartPoint.rotation;
             StartCoroutine(PlayIntroSequence());
         }
     }
@@ -140,11 +138,9 @@ public class CameraMovement : MonoBehaviour
     // ---- POI MOVEMENT ----
     public void MoveToPOI(Vector3 targetPos, Quaternion targetRot)
     {
-        // Block interaction during transitions or return-to-rail
         if (returningToRail || isTransitioning)
             return;
 
-        // If coming from another POI, fire leave event
         if (overrideActive)
         {
             HasReachedPOI = false;
@@ -164,6 +160,8 @@ public class CameraMovement : MonoBehaviour
     public void ReturnToRail()
     {
         if (isTransitioning) return;
+
+        t = GetClosestTOnRail(transform.position);
 
         Vector3 railPos = Vector3.Lerp(railStart.position, railEnd.position, t);
         railPos.y = fixedY;
