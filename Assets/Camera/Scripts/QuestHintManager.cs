@@ -79,7 +79,7 @@ public class QuestHintManager : MonoBehaviour
         if (questEnding) return;
 
         questEnding = true;
-        StartCoroutine(EndQuestAfterDelay(1.7f)); // consistent delay 
+        StartCoroutine(EndQuestAfterDelay(0.5f)); // consistent delay 
     }
 
     private IEnumerator EndQuestAfterDelay(float delay)
