@@ -70,7 +70,7 @@ public class CameraMovement : MonoBehaviour
         if (playIntroAtStart && introStartPoint != null && introTargetPoint != null)
         {
             transform.position = introStartPoint.position;
-            transform.rotation = introStartPoint.rotation; 
+            transform.rotation = introStartPoint.rotation;
             StartCoroutine(PlayIntroSequence());
         }
     }
@@ -169,6 +169,9 @@ public class CameraMovement : MonoBehaviour
     public void ReturnToRail()
     {
         if (isTransitioning) return;
+
+        // FIX: snap return target to closest point on rail
+        t = GetClosestTOnRail(transform.position);
 
         Vector3 railPos = Vector3.Lerp(railStart.position, railEnd.position, t);
         railPos.y = fixedY;
