@@ -34,8 +34,8 @@ MonoBehaviour:
     - line: '|   targetDevice: 2'
     - line: '|   useOnDemandResources: 0'
     - line: '|   accelerometerFrequency: 60'
-    - line: '|   companyName: ChivalryGames'
-    - line: '|   productName: BUP_Spel_2025'
+    - line: '|   companyName: Chivalry Games'
+    - line: '|   productName: "S\xE4kerk\xF6ping - Ett spel om \xE5ngest"'
     - line: '|   defaultCursor: {instanceID: 0}'
     - line: '|   cursorHotspot: {x: 0, y: 0}'
     - line: '|   m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b:
