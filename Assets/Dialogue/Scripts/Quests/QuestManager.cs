@@ -26,6 +26,13 @@ public class QuestManager : MonoBehaviour
     [Header("Scripted Events")]
     [SerializeField] private List<ScriptedFadeEvent> fadeEvents = new List<ScriptedFadeEvent>();
 
+    [Header("Outro Event")]
+    [SerializeField] private List<string> triggerOutroAfterDialogues = new List<string>();
+
+    [SerializeField] private CameraMovement cameraMovement;
+
+    private bool outroTriggered = false;
+
     [Header("External References")]
     [SerializeField] private QuestHintManager questHintManager;
 
@@ -174,6 +181,17 @@ public class QuestManager : MonoBehaviour
                     ScreenFade.Instance.FadeOutThenIn();
                 }
             }
+        }
+
+        // OUTRO EVENT
+        if (!outroTriggered &&
+            triggerOutroAfterDialogues.Contains(dialogueID) &&
+            GameManager.Instance.IsDialogueComplete(dialogueID))
+        {
+            outroTriggered = true;
+
+            if (cameraMovement != null)
+                cameraMovement.StartOutro();
         }
     }
 

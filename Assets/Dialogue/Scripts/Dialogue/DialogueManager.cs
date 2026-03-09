@@ -40,6 +40,13 @@ public class DialogueManager : MonoBehaviour
     [Header("Settings")]
     [SerializeField] private float autoExitDelay = 0.1f;
 
+    [Header("Characters")]
+    [SerializeField] private SpriteRenderer alexPortrait;
+    [SerializeField] private SpriteRenderer linaPortrait;
+    [SerializeField] private SpriteRenderer mayorPortrait;
+
+    [SerializeField] private float inactiveBrightness = 0.65f;
+
     // State
     private Story currentStory;
     private string currentDialogueID = "";
@@ -51,7 +58,7 @@ public class DialogueManager : MonoBehaviour
 
     public event Action<string> OnDialogueStarted;
     public event Action<string> OnDialogueEnded;
-    public event Action<string> OnDialogueEndedWithoutSuccess; // NEW: Fired when wrong choice made
+    public event Action<string> OnDialogueEndedWithoutSuccess; 
 
     public bool DialogueIsPlaying { get; private set; }
 
@@ -268,15 +275,26 @@ public class DialogueManager : MonoBehaviour
     private IEnumerator TypeText(string text)
     {
         isTyping = true;
-        dialogueText.text = "";
 
         string processedText = ProcessTags(text);
 
-        foreach (char letter in processedText)
+        // Sätt hela texten direkt
+        dialogueText.text = processedText;
+
+        // Tvinga TMP att beräkna layouten
+        dialogueText.ForceMeshUpdate();
+
+        int totalCharacters = dialogueText.textInfo.characterCount;
+
+        dialogueText.maxVisibleCharacters = 0;
+
+        for (int i = 0; i <= totalCharacters; i++)
         {
-            dialogueText.text += letter;
+            dialogueText.maxVisibleCharacters = i;
             yield return new WaitForSeconds(typingSpeed);
         }
+
+        dialogueText.maxVisibleCharacters = totalCharacters;
 
         isTyping = false;
         OnTypingComplete();
@@ -287,8 +305,11 @@ public class DialogueManager : MonoBehaviour
         if (typingCoroutine != null)
             StopCoroutine(typingCoroutine);
 
-        dialogueText.text = ProcessTags(currentStory.currentText);
+        // visa hela texten direkt
+        dialogueText.maxVisibleCharacters = dialogueText.textInfo.characterCount;
+
         isTyping = false;
+
         OnTypingComplete();
     }
 
@@ -519,10 +540,37 @@ public class DialogueManager : MonoBehaviour
                 if (key == "speaker" && nameText != null)
                 {
                     nameText.text = value;
+                    UpdatePortraitFocus(value);
                 }
             }
         }
 
         return text;
     }
+
+    private void UpdatePortraitFocus(string speaker)
+    {
+        if (alexPortrait == null || linaPortrait == null || mayorPortrait == null)
+            return;
+
+        if (speaker.ToLower() == "alex")
+        {
+            alexPortrait.color = Color.white;
+            linaPortrait.color = new Color(inactiveBrightness, inactiveBrightness, inactiveBrightness);
+            mayorPortrait.color = new Color(inactiveBrightness, inactiveBrightness, inactiveBrightness);
+        }
+        else if (speaker.ToLower() == "lina")
+        {
+            linaPortrait.color = Color.white;
+            alexPortrait.color = new Color(inactiveBrightness, inactiveBrightness, inactiveBrightness);
+            mayorPortrait.color = new Color(inactiveBrightness, inactiveBrightness, inactiveBrightness);
+        }
+        else if (speaker.ToLower() == "tryggve ångström")
+        {
+            mayorPortrait.color = Color.white;
+            alexPortrait.color = new Color(inactiveBrightness, inactiveBrightness, inactiveBrightness);
+            linaPortrait.color = new Color(inactiveBrightness, inactiveBrightness, inactiveBrightness);
+        }
+    }
+
 }

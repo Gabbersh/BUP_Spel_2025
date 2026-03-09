@@ -9,7 +9,14 @@ public class ScreenFade : MonoBehaviour
     public Image fadeImage;
     public GameObject inputBlocker;
     public GameObject nextDayText;
-    public float fadeDuration = 1.5f;
+    public GameObject outroText;
+    public float fadeInDuration = 5f;
+    public float fadeOutDuration = 5f;
+
+    [Header("UI To Hide During Fade")]
+    public GameObject leftArrow;
+    public GameObject rightArrow;
+    public GameObject handbookIcon;
 
     private Coroutine fadeRoutine;
 
@@ -35,11 +42,12 @@ public class ScreenFade : MonoBehaviour
 
     private IEnumerator FadeSequence()
     {
-        if (inputBlocker != null)
-            inputBlocker.SetActive(true);
+        if (inputBlocker != null) inputBlocker.SetActive(true);
+        if (nextDayText != null) nextDayText.SetActive(false);
 
-        if (nextDayText != null)
-            nextDayText.SetActive(false);
+        if (leftArrow != null) leftArrow.SetActive(false);
+        if (rightArrow != null) rightArrow.SetActive(false);
+        if (handbookIcon != null) handbookIcon.SetActive(false);
 
         IsFading = true;
 
@@ -62,8 +70,48 @@ public class ScreenFade : MonoBehaviour
 
         IsFading = false;
 
+        if (inputBlocker != null) inputBlocker.SetActive(false);
+
+        if (leftArrow != null) leftArrow.SetActive(true);
+        if (rightArrow != null) rightArrow.SetActive(true);
+        if (handbookIcon != null) handbookIcon.SetActive(true);
+    }
+
+    public void FadeOutOutro()
+    {
+        if (fadeRoutine != null)
+            StopCoroutine(fadeRoutine);
+
+        fadeRoutine = StartCoroutine(FadeOutroSequence());
+    }
+
+    private IEnumerator FadeOutroSequence()
+    {
         if (inputBlocker != null)
-            inputBlocker.SetActive(false);
+            inputBlocker.SetActive(true);
+
+        if (nextDayText != null)
+            nextDayText.SetActive(false);
+
+        if (outroText != null)
+            outroText.SetActive(false);
+
+        IsFading = true;
+
+        yield return new WaitForSeconds(2.5f);
+
+        yield return StartCoroutine(FadeOut());
+
+        yield return new WaitForSeconds(.5f);
+
+        // Visa outrotext
+        if (outroText != null)
+            outroText.SetActive(true);
+
+        yield return new WaitForSeconds(3f);
+
+        // Här kan du ladda huvudmenyn
+        UnityEngine.SceneManagement.SceneManager.LoadScene("Start");
     }
 
     public IEnumerator FadeIn()
@@ -74,10 +122,10 @@ public class ScreenFade : MonoBehaviour
         color.a = 1;
         fadeImage.color = color;
 
-        while (t < fadeDuration)
+        while (t < fadeInDuration)
         {
             t += Time.deltaTime;
-            color.a = 1 - (t / fadeDuration);
+            color.a = 1 - (t / fadeInDuration);
             fadeImage.color = color;
             yield return null;
         }
@@ -91,10 +139,10 @@ public class ScreenFade : MonoBehaviour
         float t = 0;
         Color color = fadeImage.color;
 
-        while (t < fadeDuration)
+        while (t < fadeOutDuration)
         {
             t += Time.deltaTime;
-            color.a = t / fadeDuration;
+            color.a = t / fadeOutDuration;
             fadeImage.color = color;
             yield return null;
         }

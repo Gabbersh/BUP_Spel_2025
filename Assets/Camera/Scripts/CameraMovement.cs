@@ -28,6 +28,11 @@ public class CameraMovement : MonoBehaviour
     public float introDuration = 3f;
     public AnimationCurve introCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
+    [Header("Outro Settings")]
+    public Transform outroEndPoint;
+    public float outroDuration = 4f;
+    public AnimationCurve outroCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+
     private bool introPlaying = false;
 
     // Events
@@ -39,7 +44,8 @@ public class CameraMovement : MonoBehaviour
     private bool isTransitioning = false;
     public bool HasReachedPOI { get; private set; } = false;
 
-    public bool IsIdleOnRail => !isTransitioning && !overrideActive && !returningToRail && Mathf.Abs(velocity) < 0.001f;
+    public bool IsIdleOnRail =>
+        !isTransitioning && !overrideActive && !returningToRail && Mathf.Abs(velocity) < 0.001f;
 
     private bool returningToRail = false;
     private Vector3 returnTargetPos;
@@ -53,6 +59,7 @@ public class CameraMovement : MonoBehaviour
 
     private Quaternion railOriginalRot;
 
+    // Allow POI → POI, block only transitions + return-to-rail + intro
     public bool CanInteractWithPOIs =>
         !isTransitioning && !returningToRail && !introPlaying;
 
@@ -63,7 +70,7 @@ public class CameraMovement : MonoBehaviour
         if (playIntroAtStart && introStartPoint != null && introTargetPoint != null)
         {
             transform.position = introStartPoint.position;
-            transform.rotation = introStartPoint.rotation;
+            transform.rotation = introStartPoint.rotation; 
             StartCoroutine(PlayIntroSequence());
         }
     }
@@ -138,9 +145,11 @@ public class CameraMovement : MonoBehaviour
     // ---- POI MOVEMENT ----
     public void MoveToPOI(Vector3 targetPos, Quaternion targetRot)
     {
+        // Block interaction during transitions or return-to-rail
         if (returningToRail || isTransitioning)
             return;
 
+        // If coming from another POI, fire leave event
         if (overrideActive)
         {
             HasReachedPOI = false;
@@ -160,8 +169,6 @@ public class CameraMovement : MonoBehaviour
     public void ReturnToRail()
     {
         if (isTransitioning) return;
-
-        t = GetClosestTOnRail(transform.position);
 
         Vector3 railPos = Vector3.Lerp(railStart.position, railEnd.position, t);
         railPos.y = fixedY;
@@ -228,5 +235,45 @@ public class CameraMovement : MonoBehaviour
         Vector3 ab = b - a;
         Vector3 ap = position - a;
         return Mathf.Clamp01(Vector3.Dot(ap, ab) / ab.sqrMagnitude);
+    }
+
+    public void StartOutro()
+    {
+        if (!introPlaying)
+        {
+            ScreenFade.Instance.FadeOutOutro();
+            StartCoroutine(PlayOutroSequence());
+        }
+    }
+
+    private IEnumerator PlayOutroSequence()
+    {
+        introPlaying = true;
+        OnLeftRail?.Invoke();
+
+        yield return new WaitForSeconds(2f);
+
+        float time = 0f;
+
+        // Start där kameran är NU
+        Vector3 startPos = transform.position;
+        Quaternion startRot = transform.rotation;
+
+        Vector3 endPos = outroEndPoint.position;
+        Quaternion endRot = outroEndPoint.rotation;
+
+        while (time < outroDuration)
+        {
+            float curveValue = outroCurve.Evaluate(time / outroDuration);
+
+            transform.position = Vector3.Lerp(startPos, endPos, curveValue);
+            transform.rotation = Quaternion.Slerp(startRot, endRot, curveValue);
+
+            time += Time.deltaTime;
+            yield return null;
+        }
+
+        transform.position = endPos;
+        transform.rotation = endRot;
     }
 }
