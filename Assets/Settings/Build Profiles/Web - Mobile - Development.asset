@@ -34,8 +34,8 @@ MonoBehaviour:
     - line: '|   targetDevice: 2'
     - line: '|   useOnDemandResources: 0'
     - line: '|   accelerometerFrequency: 60'
-    - line: '|   companyName: ChivalryGames'
-    - line: '|   productName: BUP_Spel_2025'
+    - line: '|   companyName: Chivalry Games'
+    - line: '|   productName: "S\xE4kerk\xF6ping - Ett spel om \xE5ngest"'
     - line: '|   defaultCursor: {instanceID: 0}'
     - line: '|   cursorHotspot: {x: 0, y: 0}'
     - line: '|   m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b:
@@ -164,7 +164,7 @@ MonoBehaviour:
     - line: '|   loadStoreDebugModeEnabled: 0'
     - line: '|   visionOSBundleVersion: 1.0'
     - line: '|   tvOSBundleVersion: 1.0'
-    - line: '|   bundleVersion: 0.1.0'
+    - line: '|   bundleVersion: 0.1.1'
     - line: '|   preloadedAssets:'
     - line: '|   - {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b,
         type: 3}'
@@ -321,7 +321,7 @@ MonoBehaviour:
     - line: '|   - m_BuildTarget: '
     - line: '|     m_Icons:'
     - line: '|     - serializedVersion: 2'
-    - line: '|       m_Icon: {fileID: 2800000, guid: 421d69818eed045ef9de4ebcb015ff68,
+    - line: '|       m_Icon: {fileID: 2800000, guid: b1fb9f3b53e72d140a8fa59ad29105a6,
         type: 3}'
     - line: '|       m_Width: 128'
     - line: '|       m_Height: 128'
