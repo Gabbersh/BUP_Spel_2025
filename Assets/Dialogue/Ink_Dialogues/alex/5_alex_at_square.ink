@@ -3,6 +3,10 @@ Oj vad mitt hjärta slår. Jag är väldigt illamående!
 
 * [Du är modig, är det okej att stanna lite till?]
     -> efter_forsta_val
+    
+* [Jag fattar det. Vi kan dra om du vill?]
+    Nej då, det är ingen fara.
+    -> efter_forsta_val
 
 === efter_forsta_val ===
 Jag trodde att det skulle hända någon sorts katastrof.
