@@ -22,6 +22,6 @@ Usch, nu mår jag illa igen.
     -> END
     
     + [Jag vet att du är rädd, men testar vi inte blir det aldrig någon förändring.]
-    Okej, nu är vi ändå här. 
-    Vi testar en liten stund! #success
+    Okej, nu är vi ändå här. Vi testar en liten stund! 
+    Jag går in på torget, en liten bit i taget... #success
     ->END

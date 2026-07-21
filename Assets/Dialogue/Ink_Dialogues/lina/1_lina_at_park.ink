@@ -6,7 +6,7 @@ Borgmästaren säger att man inte ska hålla tal eftersom man kan göra bort sig
 Där har han faktiskt rätt… Jag kommer att tappa orden.
 Jag har till och med tappat bort mitt manus!
 Utan det kan jag inte säga ett ord.
-    *[Jag kan försöka hjälpa dig hitta ditt manus]
+    *[Jag kan försöka hjälpa dig hitta ditt manus!]
     Tack, det vore jättesnällt!
     Säg till om du hittar det! #success
     -> END

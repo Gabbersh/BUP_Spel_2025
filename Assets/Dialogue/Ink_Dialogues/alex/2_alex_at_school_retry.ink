@@ -6,7 +6,7 @@ Men jag vet inte om jag vågar... Det känns för läskigt.
     Vi ses senare.
     -> END
 
-+ [Vi kan stå en bit utanför torget först och bara titta, om du vill?]
++ [Vi kan stå en bit utanför torget först, om du vill?]
     Det känns lite läskigt...
     Men då bryter vi inte riktigt mot reglerna heller.
     Då kanske det är mer som 5 av 10 i ångest.
