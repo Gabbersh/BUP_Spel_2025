@@ -22,7 +22,7 @@ Hur känner ni? Är vi redo att möta borgmästaren nu?
 
 * [Ja, vi gör det tillsammans!]
     # speaker: Lina
-    Jag håller med! Det känns mindre läskigt när vi hjälps åt.
+    Jag håller med! Det känns läskigt, men det är det enda rätta.
 
     # speaker: Alex
     Bra! Då ses vi hos borgmästaren. # success
@@ -31,6 +31,6 @@ Hur känner ni? Är vi redo att möta borgmästaren nu?
 + [Kanske vi ska vänta bara lite till..?]
     # speaker: Alex
     Kanske... Men då låter vi rädslan bestämma igen.
-    Är ni helt säkra? Jag röstar för att vi försöker prata med borgmästaren nu!
+    Jag röstar för att vi försöker prata med borgmästaren nu!
 
     -> alex_ready_for_mayor

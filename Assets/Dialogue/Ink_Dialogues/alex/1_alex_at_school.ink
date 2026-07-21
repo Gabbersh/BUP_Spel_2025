@@ -1,5 +1,5 @@
 Hej! Hörde du om borgmästarens nya regler?
-Jag vet att han menar väl, men det känns som att det har gått till överdrift.
+Jag vet att han menar väl, men det känns som att det har gått för långt.
 Ingen skrattar längre, ingen vågar prova nya saker. Det måste finnas ett bättre sätt.
 Ingen har varit på torget på länge, och nu har han stängt ner det helt.
 Jag saknar att hänga där. Men jag blir illamående bara av att tänka på att gå dit.
@@ -22,7 +22,7 @@ Tänk om något händer och jag inte kan hantera det?
         Vi ses senare.
         -> END
 
-    + [Vi kan stå en bit utanför torget först och bara titta, om du vill?]
+    + [Vi kan stå en bit utanför torget först, om du vill?]
         Det känns lite läskigt...
         Men då bryter vi inte riktigt mot reglerna heller.
         Då kanske det är mer som 5 av 10 i ångest.

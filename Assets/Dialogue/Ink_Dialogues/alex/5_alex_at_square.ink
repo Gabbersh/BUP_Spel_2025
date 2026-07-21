@@ -4,15 +4,20 @@ Oj vad mitt hjärta slår. Jag är väldigt illamående!
 * [Du är modig, är det okej att stanna lite till?]
     -> efter_forsta_val
     
-* [Jag fattar det. Vi kan dra om du vill?]
-    Nej då, det är ingen fara.
+* [Din kropp reagerar verkligen på ångesten nu. Klarar du lite till?]
     -> efter_forsta_val
 
 === efter_forsta_val ===
 Jag trodde att det skulle hända någon sorts katastrof.
 Att jag skulle kräkas och ingen skulle vilja komma nära mig sen.
 Men nu känns det lite bättre, och det händer ju faktiskt inget farligt.
-Tack för att du följde med mig hit!
- *[Ibland måste man möta sina rädslor. Vi ses!]
-    Du har helt rätt, vi ses! #success
+
+ * [Ibland måste man möta sina rädslor.]
+    Du har helt rätt. Nästa gång kanske jag kan testa att gå in på torget själv... 
+    Tack för att du följde med mig hit! #success
+    -> END
+    
+ * [Vad modig du var som gjorde det!]
+    Tack! Nästa gång kanske jag kan testa att gå in på torget själv... 
+    Tack för att du följde med mig hit! #success
     -> END

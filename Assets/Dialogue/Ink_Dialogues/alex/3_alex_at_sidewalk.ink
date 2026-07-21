@@ -1,8 +1,8 @@
 Okej, nu är vi här bredvid torget. 
-Tänk om borgmästaren ser mig. Det känns som att jag ska kräkas. 
+Tänk om borgmästaren ser mig? Det känns som att jag ska kräkas. 
 Mitt hjärta slår så hårt, tänk om jag får en hjärtattack!
 + [Det låter som att du håller på att bli sjuk. Jag hjälper dig hem.]
-    Tack, Det är nog bäst. Nu känner jag mig lite mindre illamående.
+    Tack, det är nog bäst. Nu känner jag mig lite mindre illamående.
     Jag tror att jag bara väntar kvar här en stund.
     Men varför är det fortfarande så grått och trist här...?
     -> END
@@ -23,6 +23,6 @@ Mitt hjärta slår så hårt, tänk om jag får en hjärtattack!
     -> END
     
     + [Jag vet att du är rädd, men testar vi inte blir det aldrig någon förändring.]
-    Okej, nu är vi ändå här. 
-    Vi testar en liten stund! #success
+    Okej, nu är vi ändå här. Vi testar en liten stund! 
+    Jag går in på torget, en liten bit i taget... #success
     ->END
